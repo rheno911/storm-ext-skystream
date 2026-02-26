@@ -1,9 +1,0 @@
-{
-  "id": "storm_ext_all",
-  "name": "StormExt All Sources",
-  "version": "1.0.0",
-  "description": "40+ streaming providers with IMDb and multi-audio",
-  "author": "rheno911",
-  "main": "plugin.js",
-  "language": "en"
-}
