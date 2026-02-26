@@ -1,0 +1,20 @@
+name: Build plugin.sky
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Create plugin.sky
+        run: zip -j plugin.sky plugin.js
+      - name: Commit plugin.sky
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add plugin.sky
+          git commit -m "Auto-build plugin.sky" || echo "No changes"
+          git push
