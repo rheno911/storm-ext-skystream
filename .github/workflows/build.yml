@@ -1,6 +1,8 @@
 name: Build plugin.sky
 on:
   push:
+    paths:
+      - 'plugin.js'
     branches: [main]
   workflow_dispatch:
 
@@ -10,24 +12,32 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Show plugin.js exists
+        run: |
+          ls -la plugin.js
+          head -3 plugin.js
 
       - name: Remove old plugin.sky
         run: rm -f plugin.sky
 
-      - name: Build fresh plugin.sky from plugin.js
-        run: zip -j plugin.sky plugin.js
-
-      - name: Verify plugin.js is at root of zip
+      - name: Zip plugin.js as plugin.sky (root, no folder)
         run: |
+          zip -j plugin.sky plugin.js
+          echo "ZIP CONTENTS:"
           unzip -l plugin.sky
-          unzip -p plugin.sky plugin.js | head -5
 
-      - name: Commit and push plugin.sky
+      - name: Verify plugin.js is inside
         run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git add -f plugin.sky
-          git diff --staged --quiet || git commit -m "Rebuild plugin.sky [$(date +%Y%m%d-%H%M%S)]"
+          unzip -p plugin.sky plugin.js | head -3
+          echo "Verification passed"
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add plugin.sky
+          git diff --staged --quiet || git commit -m "Rebuild plugin.sky"
           git push
