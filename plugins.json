@@ -3,7 +3,7 @@
     "id": "com.rheno911.stormext",
     "name": "StormExt All Sources",
     "url": "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/refs/heads/main/plugin.sky",
-    "version": 3,
+    "version": 4,
     "authors": ["rheno911"],
     "description": "40+ streaming providers",
     "language": "en",
