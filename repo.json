@@ -1,18 +1,14 @@
 {
   "name": "StormExt All Sources",
   "id": "storm_ext_all",
-  "description": "40+ streaming providers with IMDb, multi-audio, movies, series, anime",
-  "manifestVersion": 1,
-  "plugins": [
+  "repos": [
     {
       "id": "storm_ext_all",
       "name": "StormExt All Sources",
       "version": "1.0.0",
-      "description": "40+ sites: movies, series, anime, kdrama, spanish, arabic",
+      "description": "40+ sites with IMDb, multi-audio, movies, series, anime",
       "fileUrl": "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/main/plugin.js",
-      "manifestUrl": "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/main/plugin.json",
-      "author": "rheno911",
-      "language": "en"
+      "manifestUrl": "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/main/plugin.json"
     }
   ]
 }
