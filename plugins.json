@@ -1,16 +1,10 @@
 {
-  "plugins": [
-    {
-      "id": "storm_ext_all",
-      "name": "StormExt All Sources",
-      "version": "1.0.0",
-      "description": "40+ sites: IMDb, multi-audio, movies, series, anime, kdrama, spanish",
-      "url": "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/main/plugin.js",
-      "pluginJson": "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/main/plugin.json",
-      "iconUrl": "",
-      "language": "en",
-      "categories": ["movies", "series", "anime"],
-      "status": "active"
-    }
-  ]
+  "id": "storm_ext_all",
+  "name": "StormExt All Sources",
+  "version": "1.0.0",
+  "description": "40+ streaming providers with IMDb, multi-audio support",
+  "author": "rheno911",
+  "main": "plugin.js",
+  "language": "en",
+  "categories": ["movies", "series", "anime", "kdrama"]
 }
