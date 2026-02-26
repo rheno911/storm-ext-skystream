@@ -10,33 +10,17 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Create plugin.sky (base64 decode - no git corruption)
+      - name: Build plugin.sky using Linux zip
         run: |
-          python3 - <<'EOF'
-          import base64, zipfile, io, struct, zlib
+          zip -j plugin.sky plugin.js
+          echo "ZIP created:"
+          ls -la plugin.sky
+          unzip -v plugin.sky
 
-          with open('plugin.js', 'rb') as f:
-              js = f.read()
-
-          crc = zlib.crc32(js) & 0xFFFFFFFF
-          fname = b'plugin.js'
-          local = struct.pack('<IHHHHHIIIHH', 0x04034b50,20,0,0,0,0,crc,len(js),len(js),len(fname),0)+fname+js
-          cd = struct.pack('<IHHHHHHIIIHHHHHII', 0x02014b50,20,20,0,0,0,0,crc,len(js),len(js),len(fname),0,0,0,0,0,0)+fname
-          eocd = struct.pack('<IHHHHIIH', 0x06054b50,0,0,1,1,len(cd),len(local),0)
-          data = local + cd + eocd
-
-          with open('plugin.sky', 'wb') as f:
-              f.write(data)
-
-          z = zipfile.ZipFile(io.BytesIO(data))
-          print(f"Valid ZIP: {z.namelist()}")
-          print(f"Size: {len(data)} bytes")
-          EOF
-
-      - name: Commit
+      - name: Commit plugin.sky
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add -f plugin.sky
-          git commit -m "Rebuild plugin.sky v4" || echo "No changes"
+          git commit -m "Rebuild plugin.sky v8" || echo "No changes"
           git push
