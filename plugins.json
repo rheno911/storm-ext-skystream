@@ -7,7 +7,6 @@
     "authors": ["rheno911"],
     "description": "40+ streaming providers",
     "language": "en",
-    "type": "Movie",
-    "iconUrl": ""
+    "type": "Movie"
   }
 ]
