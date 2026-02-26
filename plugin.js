@@ -1,158 +1,135 @@
-const mainUrl = "https://net22.cc";
-
-const commonHeaders = {
-    "User-Agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-    "Referer": mainUrl + "/",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Cache-Control": "no-cache",
-    "Pragma": "no-cache"
-};
-
-const apiHeaders = {
-    "User-Agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-    "Accept": "application/json, text/javascript, */*; q=0.01",
-    "Referer": mainUrl + "/",
-    "X-Requested-With": "XMLHttpRequest"
-};
+var mainUrl = "https://net22.cc";
+var ua = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+var ch = { "User-Agent": ua, "Referer": mainUrl + "/", "Accept": "text/html,*/*;q=0.8" };
+var ah = { "User-Agent": ua, "Accept": "application/json, */*", "Referer": mainUrl + "/", "X-Requested-With": "XMLHttpRequest" };
 
 function getManifest() {
     return {
         name: "Net22 Sources",
         id: "com.rheno911.net22",
-        version: 1,
+        version: 3,
         baseUrl: mainUrl,
         type: "Movie",
         language: "en"
     };
 }
 
-function parseWpPosts(jsonStr) {
-    var results = [];
+function parseWp(data) {
+    var out = [];
     try {
-        var posts = JSON.parse(jsonStr);
-        if (!Array.isArray(posts)) return results;
-        for (var i = 0; i < posts.length; i++) {
-            var post = posts[i];
-            var title = post.title ? (post.title.rendered || "") : "";
-            var url   = post.link || "";
-            var img   = "";
-            if (post._embedded && post._embedded["wp:featuredmedia"]) {
-                var media = post._embedded["wp:featuredmedia"][0];
-                if (media && media.source_url) img = media.source_url;
-            }
-            if (title && url) results.push({ title: title, url: url, posterUrl: img });
+        var arr = JSON.parse(data);
+        if (!Array.isArray(arr)) return out;
+        for (var i = 0; i < arr.length; i++) {
+            var p = arr[i];
+            var t = p.title && p.title.rendered ? p.title.rendered : "";
+            var u = p.link || "";
+            var img = "";
+            try { img = p._embedded["wp:featuredmedia"][0].source_url || ""; } catch(e) {}
+            if (t && u) out.push({ title: t, url: u, posterUrl: img });
         }
     } catch(e) {}
-    return results;
+    return out;
 }
 
-function parseHtmlItems(html) {
-    var results = [];
-    var delimiters = ["flw-item", "item-film", "movie-item", "film-item", "post-item", "entry-item"];
+function parseHtml(html) {
+    var out = [];
+    var splits = ["flw-item","item-film","movie-item","film-item","post-item","<article"];
     var blocks = [];
-    for (var d = 0; d < delimiters.length; d++) {
-        if (html.indexOf(delimiters[d]) !== -1) { blocks = html.split(delimiters[d]); break; }
+    for (var s = 0; s < splits.length; s++) {
+        if (html.indexOf(splits[s]) > -1) { blocks = html.split(splits[s]); break; }
     }
-    if (blocks.length === 0) blocks = html.split("<article");
     for (var i = 1; i < blocks.length; i++) {
-        var block = blocks[i];
-        var hrefMatch = block.match(/href="(https?:[^"]+)"/);
-        if (!hrefMatch) hrefMatch = block.match(/href="(/[^"]+)"/);
-        var imgMatch  = block.match(/data-src="(https?:[^"]+)"/);
-        if (!imgMatch) imgMatch = block.match(/src="(https?:[^"]+.(?:jpg|jpeg|png|webp)[^"]*)"/);
-        var nameMatch = block.match(/title="([^"]{2,80})"/);
-        if (!nameMatch) nameMatch = block.match(/<h[1-4][^>]*>s*(?:<a[^>]*>)?([^<]{2,80})</);
-        if (hrefMatch && nameMatch) {
-            var href = hrefMatch[1];
-            if (href.indexOf("http") === -1) href = mainUrl + href;
-            results.push({ title: nameMatch[1].trim(), url: href, posterUrl: imgMatch ? imgMatch[1] : "" });
+        var b = blocks[i];
+        var hm = b.match(/href="(https?:[^"]{5,200})"/);
+        if (!hm) hm = b.match(/href="(/[^"]{2,200})"/);
+        var im = b.match(/data-src="(https?:[^"]{5,200})"/);
+        if (!im) im = b.match(/src="(https?:[^"]{5,200}.(?:jpg|png|webp)[^"]*)"/);
+        var nm = b.match(/title="([^"]{2,80})"/);
+        if (!nm) nm = b.match(/<h[1-4][^>]*>([^<]{2,80})</);
+        if (hm && nm) {
+            var href = hm[1].charAt(0) === "/" ? mainUrl + hm[1] : hm[1];
+            var title = nm[1].trim();
+            if (title.length > 1) out.push({ title: title, url: href, posterUrl: im ? im[1] : "" });
         }
     }
-    return results;
+    return out;
 }
 
 function getHome(callback) {
-    var wpUrl = mainUrl + "/wp-json/wp/v2/posts?per_page=20&page=1&_embed=true";
-    http_get(wpUrl, apiHeaders, function(status, data) {
-        var items = parseWpPosts(data);
+    http_get(mainUrl + "/wp-json/wp/v2/posts?per_page=20&_embed=true", ah, function(s, d) {
+        var items = parseWp(d);
         if (items.length > 0) { callback(JSON.stringify({ "Latest": items })); return; }
-        http_get(mainUrl, commonHeaders, function(s2, html) {
-            var htmlItems = parseHtmlItems(html);
-            callback(JSON.stringify({ "Latest": htmlItems }));
+        http_get(mainUrl, ch, function(s2, html) {
+            callback(JSON.stringify({ "Latest": parseHtml(html) }));
         });
     });
 }
 
 function search(query, callback) {
-    var wpSearch = mainUrl + "/wp-json/wp/v2/posts?search=" + encodeURIComponent(query) + "&per_page=20&_embed=true";
-    http_get(wpSearch, apiHeaders, function(status, data) {
-        var items = parseWpPosts(data);
+    http_get(mainUrl + "/wp-json/wp/v2/posts?search=" + encodeURIComponent(query) + "&per_page=20&_embed=true", ah, function(s, d) {
+        var items = parseWp(d);
         if (items.length > 0) { callback(JSON.stringify(items)); return; }
-        http_get(mainUrl + "/?s=" + encodeURIComponent(query), commonHeaders, function(s2, html) {
-            callback(JSON.stringify(parseHtmlItems(html)));
+        http_get(mainUrl + "/?s=" + encodeURIComponent(query), ch, function(s2, html) {
+            callback(JSON.stringify(parseHtml(html)));
         });
     });
 }
 
 function load(url, callback) {
-    http_get(url, commonHeaders, function(status, html) {
-        var titleMatch = html.match(/property="og:title"s+content="([^"]+)"/);
-        if (!titleMatch) titleMatch = html.match(/<h1[^>]*>([^<]+)</h1>/);
-        var descMatch  = html.match(/property="og:description"s+content="([^"]+)"/);
-        var imgMatch   = html.match(/property="og:image"s+content="([^"]+)"/);
-        if (!imgMatch) imgMatch = html.match(/name="twitter:image"s+content="([^"]+)"/);
-        var yearMatch  = html.match(/([12][0-9]{3})</span>/);
-        var idMatch    = html.match(/data-id="([0-9]+)"/);
-        if (!idMatch) idMatch = html.match(/data-post="([0-9]+)"/);
-        if (!idMatch) idMatch = html.match(/postid-([0-9]+)/);
-        var iframeMatch = html.match(/<iframe[^>]+src="([^"]+)"/);
+    http_get(url, ch, function(s, html) {
+        var tm = html.match(/property="og:title"[^>]*content="([^"]+)"/);
+        if (!tm) tm = html.match(/<h1[^>]*>([^<]+)</h1>/);
+        var dm = html.match(/property="og:description"[^>]*content="([^"]+)"/);
+        var im = html.match(/property="og:image"[^>]*content="([^"]+)"/);
+        var ym = html.match(/([12][0-9]{3})</span>/);
+        var idm = html.match(/data-id="([0-9]+)"/);
+        if (!idm) idm = html.match(/data-post="([0-9]+)"/);
+        if (!idm) idm = html.match(/postid-([0-9]+)/);
+        var ifm = html.match(/<iframe[^>]+src="([^"]+)"/);
         callback(JSON.stringify({
             url: url,
-            data: idMatch ? idMatch[1] : (iframeMatch ? iframeMatch[1] : url),
-            title: titleMatch ? titleMatch[1].trim() : "",
-            description: descMatch ? descMatch[1].trim() : "",
-            posterUrl: imgMatch ? imgMatch[1] : "",
-            year: yearMatch ? parseInt(yearMatch[1]) : 0
+            data: idm ? idm[1] : (ifm ? ifm[1] : url),
+            title: tm ? tm[1].trim() : "",
+            description: dm ? dm[1].trim() : "",
+            posterUrl: im ? im[1] : "",
+            year: ym ? parseInt(ym[1]) : 0
         }));
     });
 }
 
 function loadStreams(url, callback) {
-    http_get(url, commonHeaders, function(status, html) {
+    http_get(url, ch, function(s, html) {
         var streams = [];
-        var directM3u8 = html.match(/["'](https?:[^"']+.m3u8[^"']*)["']/);
-        if (directM3u8) {
-            callback(JSON.stringify([{ name: "Direct", url: directM3u8[1], headers: commonHeaders }]));
-            return;
-        }
-        var embedUrls = [];
-        var iframeReg = /iframe[^>]+src="([^"]+)"/g;
-        var match;
-        while ((match = iframeReg.exec(html)) !== null) {
-            if (match[1].indexOf("google") === -1 && match[1].indexOf("facebook") === -1) {
-                embedUrls.push(match[1].indexOf("http") === -1 ? mainUrl + match[1] : match[1]);
+        var dm = html.match(/["'](https?:[^"']+.m3u8[^"']*)["']/);
+        if (dm) { callback(JSON.stringify([{ name: "Direct", url: dm[1], headers: ch }])); return; }
+        var embeds = [];
+        var iparts = html.split("iframe");
+        for (var i = 1; i < iparts.length; i++) {
+            var sm = iparts[i].match(/src="([^"]+)"/);
+            if (sm && sm[1].indexOf("google") < 0 && sm[1].indexOf("facebook") < 0) {
+                embeds.push(sm[1].charAt(0) === "/" ? mainUrl + sm[1] : sm[1]);
             }
         }
-        var dataReg = /data-(?:embed|src|video)="([^"]+)"/g;
-        while ((match = dataReg.exec(html)) !== null) {
-            if (match[1].indexOf(".") !== -1) {
-                embedUrls.push(match[1].indexOf("http") === -1 ? mainUrl + match[1] : match[1]);
-            }
+        var dparts = html.split('data-embed="');
+        for (var j = 1; j < dparts.length; j++) {
+            var ev = dparts[j].split('"')[0];
+            if (ev.indexOf(".") > -1) embeds.push(ev.charAt(0) === "/" ? mainUrl + ev : ev);
         }
-        if (embedUrls.length === 0) { callback(JSON.stringify(streams)); return; }
-        var pending = embedUrls.length;
-        embedUrls.forEach(function(embedUrl) {
-            http_get(embedUrl, { "User-Agent": commonHeaders["User-Agent"], "Referer": url, "Accept": "*/*" }, function(s, embedHtml) {
-                var m3u8 = embedHtml.match(/file:s*["']([^"']+.m3u8[^"']*)["']/);
-                if (!m3u8) m3u8 = embedHtml.match(/["'](https?:[^"'s]+.m3u8[^"'s]*)["']/);
-                var mp4 = embedHtml.match(/file:s*["']([^"']+.mp4[^"']*)["']/);
-                if (!mp4) mp4 = embedHtml.match(/["'](https?:[^"'s]+.mp4[^"'s]*)["']/);
-                if (m3u8) streams.push({ name: "HLS", url: m3u8[1], headers: { "User-Agent": commonHeaders["User-Agent"], "Referer": embedUrl } });
-                else if (mp4) streams.push({ name: "MP4", url: mp4[1], headers: { "User-Agent": commonHeaders["User-Agent"], "Referer": embedUrl } });
-                pending--;
-                if (pending === 0) callback(JSON.stringify(streams));
-            });
-        });
+        if (embeds.length === 0) { callback(JSON.stringify(streams)); return; }
+        var pending = embeds.length;
+        for (var k = 0; k < embeds.length; k++) {
+            (function(eu) {
+                http_get(eu, { "User-Agent": ua, "Referer": url }, function(es, eh) {
+                    var vm = eh.match(/file:s*["']([^"']+.m3u8[^"']*)["']/);
+                    if (!vm) vm = eh.match(/["'](https?:[^"'s]+.m3u8[^"'s]*)["']/);
+                    var mp = eh.match(/file:s*["']([^"']+.mp4[^"']*)["']/);
+                    if (!mp) mp = eh.match(/["'](https?:[^"'s]+.mp4[^"'s]*)["']/);
+                    if (vm) streams.push({ name: "HLS", url: vm[1], headers: { "User-Agent": ua, "Referer": eu } });
+                    else if (mp) streams.push({ name: "MP4", url: mp[1], headers: { "User-Agent": ua, "Referer": eu } });
+                    pending--;
+                    if (pending === 0) callback(JSON.stringify(streams));
+                });
+            })(embeds[k]);
+        }
     });
 }
