@@ -12,22 +12,19 @@ jobs:
 
       - name: Create plugin.sky from plugin.js
         run: |
-          cp plugin.js plugin_temp.js
-          zip -j plugin.sky plugin_temp.js
-          mv plugin.sky plugin_temp.sky
-          python3 -c "
-          import zipfile, os
-          with zipfile.ZipFile('plugin_temp.sky', 'r') as z:
-              data = z.read('plugin_temp.js')
+          python3 - <<'EOF'
+          import zipfile
+          with open('plugin.js', 'rb') as f:
+              content = f.read()
           with zipfile.ZipFile('plugin.sky', 'w', zipfile.ZIP_DEFLATED) as z:
-              z.writestr('plugin.js', data)
-          os.remove('plugin_temp.sky')
-          "
+              z.writestr('plugin.js', content)
+          print("Created plugin.sky successfully")
+          EOF
 
-      - name: Commit
+      - name: Commit plugin.sky
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add plugin.sky
-          git commit -m "Build plugin.sky" || echo "No changes"
+          git commit -m "Rebuild plugin.sky" || echo "No changes"
           git push
