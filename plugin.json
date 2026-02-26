@@ -1,0 +1,9 @@
+{
+  "id": "storm_ext_all",
+  "name": "StormExt All Sources",
+  "version": "1.0.0",
+  "description": "All storm-ext providers with full metadata, IMDb, MongoDB, multi-audio",
+  "author": "converted",
+  "main_class": "StormExtAll",
+  "requirements": ["axios", "cheerio"]
+}
