@@ -1,5 +1,6 @@
 {
   "name": "StormExt All Sources",
+  "id": "com.rheno911.stormext.repo",
   "description": "40+ streaming providers",
   "manifestVersion": 1,
   "pluginLists": [
