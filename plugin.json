@@ -1,0 +1,9 @@
+{
+  "id": "storm_ext_all",
+  "name": "StormExt All Sources",
+  "version": "1.0.0",
+  "description": "All storm-ext providers: IMDb, multi-audio, 40+ sites",
+  "author": "rheno911",
+  "internalName": "StormExtAll",
+  "language": "en"
+}
