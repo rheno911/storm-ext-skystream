@@ -1,0 +1,12 @@
+[
+  {
+    "id": "storm_ext_all",
+    "name": "StormExt All Sources",
+    "version": "1.0.0",
+    "description": "All storm-ext scrapers: IMDb + MongoDB + multi-audio + 40+ sites",
+    "url": "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/main/plugin.js",
+    "icon": "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/main/icon.png",
+    "language": "en",
+    "fileSize": 1
+  }
+]
