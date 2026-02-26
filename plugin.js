@@ -1,948 +1,340 @@
-const axios = require("axios");
-const cheerio = require("cheerio");
-
-const PROVIDERS = [
-  { id: "sflix",         name: "Sflix",              url: "https://sflix.to",                 type: "flw",          lang: "en" },
-  { id: "dopebox",       name: "Dopebox",            url: "https://dopebox.to",               type: "flw",          lang: "en" },
-  { id: "solarmovie",    name: "Solarmovie",         url: "https://solarmovie.pe",            type: "flw",          lang: "en" },
-  { id: "theflixto",     name: "TheFlix",            url: "https://theflix.to",               type: "flw",          lang: "en" },
-  { id: "2embed",        name: "2Embed",             url: "https://www.2embed.to",            type: "embed",        lang: "en" },
-  { id: "vmovee",        name: "VMovee",             url: "https://www.vmovee.watch",         type: "flw",          lang: "en" },
-  { id: "vidembed",      name: "VidEmbed",           url: "https://vidembed.cc",              type: "vidembed",     lang: "en" },
-  { id: "allmovies",     name: "AllMoviesForYou",    url: "https://allmoviesforyou.net",      type: "allmovies",    lang: "en" },
-  { id: "yomovies",      name: "Yomovies",           url: "https://yomovies.vip",             type: "yomovies",     lang: "en" },
-  { id: "lookmovie",     name: "LookMovie",          url: "https://lookmovie.io",             type: "lookmovie",    lang: "en" },
-  { id: "trailers",      name: "Trailers.to",        url: "https://trailers.to",              type: "flw",          lang: "en" },
-  { id: "ihavenotv",     name: "IHaveNoTV",          url: "https://ihavenotv.com",            type: "ihavenotv",    lang: "en" },
-  { id: "cuevana",       name: "Cuevana3",           url: "https://cuevana3.me",              type: "cuevana",      lang: "es" },
-  { id: "cinecalidad",   name: "Cinecalidad",        url: "https://cinecalidad.lol",          type: "cinecalidad",  lang: "es" },
-  { id: "pelisflix",     name: "Pelisflix",          url: "https://pelisflix.li",             type: "pelisflix",    lang: "es" },
-  { id: "pelisplushd",   name: "PelisplusHD",        url: "https://pelisplushd.net",          type: "pelisplus",    lang: "es" },
-  { id: "pelisplus",     name: "Pelisplus",          url: "https://pelisplus.icu",            type: "pelisplus",    lang: "es" },
-  { id: "pelismart",     name: "PeliSmart",          url: "https://pelismart.com",            type: "pelismart",    lang: "es" },
-  { id: "seriesflix",    name: "Seriesflix",         url: "https://seriesflix.video",         type: "seriesflix",   lang: "es" },
-  { id: "entrepeli",     name: "EntrePeliculas",     url: "https://entrepeliculasyseries.nu", type: "entrepeli",    lang: "es" },
-  { id: "akwam",         name: "Akwam",              url: "https://akwam.to",                 type: "akwam",        lang: "ar" },
-  { id: "mycima",        name: "MyCima",             url: "https://mycima.tv",                type: "mycima",       lang: "ar" },
-  { id: "gogoanime",     name: "GogoAnime",          url: "https://gogoanime.sk",             type: "gogo",         lang: "jp" },
-  { id: "allanime",      name: "AllAnime",           url: "https://allanime.site",            type: "allanime",     lang: "jp" },
-  { id: "animeflv",      name: "AnimeFlv",           url: "https://www3.animeflv.net",        type: "animeflv",     lang: "es" },
-  { id: "animeflick",    name: "AnimeFlick",         url: "https://animeflick.net",           type: "animeflick",   lang: "jp" },
-  { id: "animeworld",    name: "AnimeWorld",         url: "https://www.animeworld.tv",        type: "animeworld",   lang: "it" },
-  { id: "animekisa",     name: "AnimeKisa",          url: "https://animekisa.in",             type: "animekisa",    lang: "jp" },
-  { id: "animepahe",     name: "AnimePahe",          url: "https://animepahe.com",            type: "animepahe",    lang: "jp" },
-  { id: "kawaiifu",      name: "Kawaiifu",           url: "https://kawaiifu.com",             type: "kawaiifu",     lang: "jp" },
-  { id: "tenshi",        name: "Tenshi.moe",         url: "https://tenshi.moe",               type: "tenshi",       lang: "jp" },
-  { id: "monoschinos",   name: "Monoschinos",        url: "https://monoschinos2.com",         type: "monoschinos",  lang: "es" },
-  { id: "dubbedanime",   name: "DubbedAnime",        url: "https://bestdubbedanime.com",      type: "dubbedanime",  lang: "en" },
-  { id: "asianload",     name: "AsianLoad",          url: "https://asianembed.io",            type: "asianload",    lang: "ko" },
-  { id: "dramasee",      name: "DramaSee",           url: "https://dramasee.net",             type: "dramasee",     lang: "ko" },
-  { id: "doramasyt",     name: "DoramasYT",          url: "https://doramasyt.com",            type: "doramas",      lang: "ko" },
-  { id: "kdramahood",    name: "KDramaHood",         url: "https://kdramahood.com",           type: "kdrama",       lang: "ko" },
-  { id: "watchasian",    name: "WatchAsian",         url: "https://watchasian.cx",            type: "watchasian",   lang: "ko" },
-  { id: "pinoyhd",       name: "PinoyHD",            url: "https://www.pinoy-hd.xyz",         type: "pinoyhd",      lang: "tl" },
-  { id: "pinoymovie",    name: "PinoyMoviePedia",    url: "https://pinoymoviepedia.ru",       type: "pinoyhd",      lang: "tl" },
-  { id: "pinoymovies",   name: "PinoyMovies",        url: "https://pinoymovies.es",           type: "pinoyhd",      lang: "tl" },
-  { id: "frenchstream",  name: "FrenchStream",       url: "https://french-stream.re",         type: "frenchstream", lang: "fr" },
-  { id: "vffilm",        name: "VF-Film",            url: "https://vf-film.me",               type: "vffr",         lang: "fr" },
-  { id: "vfserie",       name: "VF-Serie",           url: "https://vf-serie.org",             type: "vffr",         lang: "fr" },
-  { id: "filman",        name: "Filman.cc",          url: "https://filman.cc",                type: "filman",       lang: "pl" },
-  { id: "wcotv",         name: "WCO Stream",         url: "https://wcostream.cc",             type: "wco",          lang: "en" },
-  { id: "watchcartoon",  name: "WatchCartoonOnline", url: "https://www.wcostream.com",        type: "wco",          lang: "en" },
-];
-
-const SELECTORS = {
-  flw: {
-    searchUrl:     (base, q) => `${base}/search?keyword=${encodeURIComponent(q)}`,
-    item:          ".flw-item",
-    title:         ".film-name",
-    poster:        "img[data-src]",
-    link:          "a.film-poster-ahref",
-    type:          ".fdi-type",
-    serverBlock:   ".ps_-block .nav-item a",
-    serverId:      "data-id",
-    serverAjax:    (base, id) => `${base}/ajax/sources/${id}`,
-    episodeList:   ".ss-list a.ep-item",
-    episodeSeason: "data-season",
-    episodeNum:    "data-episode",
-    imdbLink:      'a[href*="imdb.com/title"]',
-    plot:          ".description",
-    heading:       ".heading-name",
-    year:          ".item.year",
-  },
-  embed: {
-    searchUrl:     (base, q) => `${base}/search?keyword=${encodeURIComponent(q)}`,
-    item:          ".flw-item",
-    title:         ".film-name",
-    poster:        "img[data-src]",
-    link:          "a",
-    type:          ".fdi-type",
-    serverBlock:   "li[data-id]",
-    serverId:      "data-id",
-    serverAjax:    (base, id) => `${base}/ajax/sources/${id}`,
-    episodeList:   ".ep-item",
-    episodeSeason: "data-season",
-    episodeNum:    "data-episode",
-    imdbLink:      'a[href*="imdb.com"]',
-    plot:          ".description",
-    heading:       ".heading-name",
-    year:          ".item.year",
-  },
-  vidembed: {
-    searchUrl:     (base, q) => `${base}/search?s=${encodeURIComponent(q)}`,
-    item:          ".film_list-wrap .flw-item",
-    title:         ".film-name",
-    poster:        "img[data-src]",
-    link:          "a.film-poster-ahref",
-    type:          ".fdi-type",
-    serverBlock:   ".ps_-block .nav-item a",
-    serverId:      "data-id",
-    serverAjax:    (base, id) => `${base}/ajax/sources/${id}`,
-    episodeList:   ".ss-list a.ep-item",
-    episodeSeason: "data-season",
-    episodeNum:    "data-episode",
-    imdbLink:      'a[href*="imdb.com"]',
-    plot:          ".description",
-    heading:       ".heading-name",
-    year:          ".item.year",
-  },
-  cuevana: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".TPost.C",
-    title:         ".Title",
-    poster:        "img.CoverLazy",
-    link:          "a",
-    type:          ".genre",
-    serverBlock:   ".AABox .AA-cont",
-    serverId:      "data-id",
-    serverAjax:    (base, id) => `${base}/api/source/${id}`,
-    episodeList:   ".episodios li a",
-    episodeSeason: "data-season",
-    episodeNum:    "data-number",
-    imdbLink:      'a[href*="imdb.com"]',
-    plot:          ".Description p",
-    heading:       "h1.Title",
-    year:          ".Date",
-  },
-  cinecalidad: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".TPost.C",
-    title:         ".Title",
-    poster:        "img",
-    link:          "a",
-    type:          ".genre",
-    serverBlock:   ".opt-server",
-    serverId:      "data-link",
-    serverAjax:    null,
-    episodeList:   ".episodios li a",
-    episodeSeason: "data-season",
-    episodeNum:    "data-number",
-    imdbLink:      'a[href*="imdb.com"]',
-    plot:          ".Description p",
-    heading:       "h1.Title",
-    year:          ".Date",
-  },
-  pelisplus: {
-    searchUrl:     (base, q) => `${base}/search?s=${encodeURIComponent(q)}`,
-    item:          ".card-movie",
-    title:         ".card-title",
-    poster:        "img.card-img",
-    link:          "a.card-link",
-    type:          ".card-type",
-    serverBlock:   ".server-item",
-    serverId:      "data-id",
-    serverAjax:    (base, id) => `${base}/api/source/${id}`,
-    episodeList:   ".episode-item a",
-    episodeSeason: "data-season",
-    episodeNum:    "data-ep",
-    imdbLink:      'a[href*="imdb.com"]',
-    plot:          ".sinopsis p",
-    heading:       "h1.movie-title",
-    year:          ".year-label",
-  },
-  pelismart: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".result-item",
-    title:         ".title a",
-    poster:        "img",
-    link:          ".title a",
-    type:          ".meta span",
-    serverBlock:   ".dooplay_player_option",
-    serverId:      "data-post",
-    serverAjax:    (base, id) => `${base}/wp-admin/admin-ajax.php`,
-    episodeList:   ".episodios li a",
-    episodeSeason: "data-season",
-    episodeNum:    "data-number",
-    imdbLink:      'a[href*="imdb.com"]',
-    plot:          ".wp-content p",
-    heading:       "h1.entry-title",
-    year:          ".date",
-  },
-  seriesflix: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".TPost.B",
-    title:         ".Title",
-    poster:        "img",
-    link:          "a",
-    type:          ".genre",
-    serverBlock:   ".dooplay_player_option",
-    serverId:      "data-post",
-    serverAjax:    (base, id) => `${base}/wp-admin/admin-ajax.php`,
-    episodeList:   ".episodios li a",
-    episodeSeason: "data-season",
-    episodeNum:    "data-number",
-    imdbLink:      'a[href*="imdb.com"]',
-    plot:          ".Description p",
-    heading:       "h1.Title",
-    year:          ".Date",
-  },
-  entrepeli: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".result-item",
-    title:         ".title a",
-    poster:        "img",
-    link:          ".title a",
-    type:          "span.Qlty",
-    serverBlock:   ".dooplay_player_option",
-    serverId:      "data-post",
-    serverAjax:    (base, id) => `${base}/wp-admin/admin-ajax.php`,
-    episodeList:   ".episodios li a",
-    episodeSeason: "data-season",
-    episodeNum:    "data-number",
-    imdbLink:      'a[href*="imdb.com"]',
-    plot:          ".wp-content p",
-    heading:       "h1.entry-title",
-    year:          ".date",
-  },
-  pelisflix: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".TPost.C",
-    title:         ".Title",
-    poster:        "img",
-    link:          "a",
-    type:          ".genre",
-    serverBlock:   ".dooplay_player_option",
-    serverId:      "data-post",
-    serverAjax:    (base, id) => `${base}/wp-admin/admin-ajax.php`,
-    episodeList:   ".episodios li a",
-    episodeSeason: "data-season",
-    episodeNum:    "data-number",
-    imdbLink:      'a[href*="imdb.com"]',
-    plot:          ".Description p",
-    heading:       "h1.Title",
-    year:          ".Date",
-  },
-  akwam: {
-    searchUrl:     (base, q) => `${base}/search?q=${encodeURIComponent(q)}`,
-    item:          ".entry-box",
-    title:         ".entry-title",
-    poster:        "img.thumbnail",
-    link:          "a.entry-image-link",
-    type:          ".entry-category",
-    serverBlock:   ".download-links-title",
-    serverId:      "data-url",
-    serverAjax:    null,
-    episodeList:   ".episodes-list a",
-    episodeSeason: "data-season",
-    episodeNum:    "data-episode",
-    imdbLink:      'a[href*="imdb.com"]',
-    plot:          ".entry-description",
-    heading:       "h1.entry-title",
-    year:          ".entry-date",
-  },
-  mycima: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".GridItem",
-    title:         "strong.hasyear",
-    poster:        "img",
-    link:          "a",
-    type:          ".GridItem .Label",
-    serverBlock:   "ul.Servers li",
-    serverId:      "data-url",
-    serverAjax:    null,
-    episodeList:   "ul.Episodes li a",
-    episodeSeason: "data-season",
-    episodeNum:    "data-episode",
-    imdbLink:      'a[href*="imdb.com"]',
-    plot:          ".StoryLine",
-    heading:       "h1.Title",
-    year:          "span.year",
-  },
-  gogo: {
-    searchUrl:     (base, q) => `${base}/search.html?keyword=${encodeURIComponent(q)}`,
-    item:          ".items li",
-    title:         "p.name a",
-    poster:        "div.img-block img",
-    link:          "div.img-block a",
-    type:          "span.type",
-    serverBlock:   "#load_ep li",
-    serverId:      "data-video",
-    serverAjax:    null,
-    episodeList:   "#episode_page a",
-    episodeSeason: null,
-    episodeNum:    "ep_end",
-    imdbLink:      null,
-    plot:          ".description",
-    heading:       "h1",
-    year:          ".released",
-  },
-  allanime: {
-    searchUrl:     (base, q) => `${base}/search?name=${encodeURIComponent(q)}`,
-    item:          ".show-card",
-    title:         ".show-name",
-    poster:        "img.show-thumbnail",
-    link:          "a",
-    type:          ".show-type",
-    serverBlock:   ".server-link",
-    serverId:      "data-src",
-    serverAjax:    null,
-    episodeList:   ".episode-link",
-    episodeSeason: null,
-    episodeNum:    "data-episode",
-    imdbLink:      null,
-    plot:          ".description",
-    heading:       "h1.show-title",
-    year:          ".year",
-  },
-  animeflv: {
-    searchUrl:     (base, q) => `${base}/browse?q=${encodeURIComponent(q)}`,
-    item:          "ul.ListAnimes li",
-    title:         "h3.Title",
-    poster:        "figure img",
-    link:          "a",
-    type:          "span.Type",
-    serverBlock:   "ul.ListServers li",
-    serverId:      "data-url",
-    serverAjax:    null,
-    episodeList:   "ul.ListCaps li a",
-    episodeSeason: null,
-    episodeNum:    "data-episode",
-    imdbLink:      null,
-    plot:          ".Description p",
-    heading:       "h1.Title",
-    year:          "span.Date",
-  },
-  animeflick: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".anime-item",
-    title:         ".anime-title",
-    poster:        "img",
-    link:          "a",
-    type:          ".anime-type",
-    serverBlock:   ".server-item",
-    serverId:      "data-src",
-    serverAjax:    null,
-    episodeList:   ".episode-list a",
-    episodeSeason: null,
-    episodeNum:    "data-episode",
-    imdbLink:      null,
-    plot:          ".anime-description",
-    heading:       "h1.anime-title",
-    year:          ".anime-year",
-  },
-  animeworld: {
-    searchUrl:     (base, q) => `${base}/search?keyword=${encodeURIComponent(q)}`,
-    item:          ".film-list .item",
-    title:         ".name",
-    poster:        "img",
-    link:          "a",
-    type:          ".status",
-    serverBlock:   ".server",
-    serverId:      "data-id",
-    serverAjax:    null,
-    episodeList:   ".episodes a",
-    episodeSeason: "data-season",
-    episodeNum:    "data-episode",
-    imdbLink:      null,
-    plot:          ".desc",
-    heading:       "h1",
-    year:          ".year",
-  },
-  animekisa: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".basic.item",
-    title:         ".title",
-    poster:        "img",
-    link:          "a",
-    type:          ".type",
-    serverBlock:   ".server",
-    serverId:      "data-video",
-    serverAjax:    null,
-    episodeList:   ".episodes a",
-    episodeSeason: null,
-    episodeNum:    "data-episode",
-    imdbLink:      null,
-    plot:          ".synopsis",
-    heading:       "h1.title",
-    year:          ".year",
-  },
-  animepahe: {
-    searchUrl:     (base, q) => `${base}/api?m=search&q=${encodeURIComponent(q)}`,
-    item:          ".card",
-    title:         ".title",
-    poster:        "img",
-    link:          "a",
-    type:          ".type",
-    serverBlock:   ".server",
-    serverId:      "data-src",
-    serverAjax:    null,
-    episodeList:   ".episode a",
-    episodeSeason: null,
-    episodeNum:    "data-episode",
-    imdbLink:      null,
-    plot:          ".synopsis",
-    heading:       "h1",
-    year:          ".year",
-  },
-  kawaiifu: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".film-item",
-    title:         ".film-name",
-    poster:        "img",
-    link:          "a",
-    type:          ".type",
-    serverBlock:   ".server-item",
-    serverId:      "data-src",
-    serverAjax:    null,
-    episodeList:   ".episode-list a",
-    episodeSeason: null,
-    episodeNum:    "data-episode",
-    imdbLink:      null,
-    plot:          ".description",
-    heading:       "h1",
-    year:          ".year",
-  },
-  tenshi: {
-    searchUrl:     (base, q) => `${base}/list?q=${encodeURIComponent(q)}`,
-    item:          ".anime-item",
-    title:         ".anime-title",
-    poster:        "img",
-    link:          "a",
-    type:          ".type",
-    serverBlock:   ".server",
-    serverId:      "data-src",
-    serverAjax:    null,
-    episodeList:   ".episode-list a",
-    episodeSeason: null,
-    episodeNum:    "data-ep",
-    imdbLink:      null,
-    plot:          ".synopsis",
-    heading:       "h1.title",
-    year:          ".year",
-  },
-  monoschinos: {
-    searchUrl:     (base, q) => `${base}/buscar?q=${encodeURIComponent(q)}`,
-    item:          ".tarjeta-animepage",
-    title:         ".tit",
-    poster:        "img",
-    link:          "a",
-    type:          ".tipo",
-    serverBlock:   ".cap_repro",
-    serverId:      "data-player",
-    serverAjax:    null,
-    episodeList:   ".episodio-con a",
-    episodeSeason: null,
-    episodeNum:    "data-episode",
-    imdbLink:      null,
-    plot:          ".synopsis",
-    heading:       "h1.title",
-    year:          ".year",
-  },
-  dubbedanime: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".item",
-    title:         ".title",
-    poster:        "img",
-    link:          "a",
-    type:          ".type",
-    serverBlock:   ".server",
-    serverId:      "data-src",
-    serverAjax:    null,
-    episodeList:   ".episodes a",
-    episodeSeason: null,
-    episodeNum:    "data-episode",
-    imdbLink:      null,
-    plot:          ".description",
-    heading:       "h1",
-    year:          ".year",
-  },
-  asianload: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".video-block",
-    title:         ".title",
-    poster:        "img",
-    link:          "a",
-    type:          ".type",
-    serverBlock:   ".anime_muti_link ul li",
-    serverId:      "data-video",
-    serverAjax:    null,
-    episodeList:   "#episode_page a",
-    episodeSeason: null,
-    episodeNum:    "ep_end",
-    imdbLink:      null,
-    plot:          ".post-entry p",
-    heading:       "h2.title",
-    year:          ".release-time",
-  },
-  dramasee: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".films-wraps .film-item",
-    title:         ".film-name",
-    poster:        "img.film-poster-img",
-    link:          "a.film-poster-ahref",
-    type:          ".fdi-type",
-    serverBlock:   ".server-item",
-    serverId:      "data-id",
-    serverAjax:    (base, id) => `${base}/ajax/server/${id}`,
-    episodeList:   ".ss-list a.ep-item",
-    episodeSeason: "data-season",
-    episodeNum:    "data-episode",
-    imdbLink:      'a[href*="imdb.com"]',
-    plot:          ".description",
-    heading:       ".heading-name",
-    year:          ".item.year",
-  },
-  doramas: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".col-xs-6 .TPost",
-    title:         ".Title",
-    poster:        "img",
-    link:          "a",
-    type:          ".genre",
-    serverBlock:   ".dooplay_player_option",
-    serverId:      "data-post",
-    serverAjax:    (base, id) => `${base}/wp-admin/admin-ajax.php`,
-    episodeList:   ".episodios li a",
-    episodeSeason: "data-season",
-    episodeNum:    "data-number",
-    imdbLink:      null,
-    plot:          ".Description p",
-    heading:       "h1.Title",
-    year:          ".Date",
-  },
-  kdrama: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".recent-movies .item",
-    title:         "h2",
-    poster:        "img",
-    link:          "a",
-    type:          ".type",
-    serverBlock:   ".tab-video a",
-    serverId:      "data-embed",
-    serverAjax:    null,
-    episodeList:   ".list-eps a",
-    episodeSeason: null,
-    episodeNum:    "data-ep",
-    imdbLink:      null,
-    plot:          ".entry-content p",
-    heading:       "h1.entry-title",
-    year:          ".year",
-  },
-  watchasian: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".video-block",
-    title:         ".title",
-    poster:        "img",
-    link:          "a",
-    type:          ".type",
-    serverBlock:   ".anime_muti_link ul li",
-    serverId:      "data-video",
-    serverAjax:    null,
-    episodeList:   "ul.listing.items li a",
-    episodeSeason: null,
-    episodeNum:    "data-episode",
-    imdbLink:      null,
-    plot:          ".post-entry p",
-    heading:       "h2.video-title",
-    year:          ".date-released",
-  },
-  pinoyhd: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".TPost",
-    title:         ".Title",
-    poster:        "img",
-    link:          "a",
-    type:          ".genre",
-    serverBlock:   ".dooplay_player_option",
-    serverId:      "data-post",
-    serverAjax:    (base, id) => `${base}/wp-admin/admin-ajax.php`,
-    episodeList:   ".episodios li a",
-    episodeSeason: "data-season",
-    episodeNum:    "data-number",
-    imdbLink:      null,
-    plot:          ".Description p",
-    heading:       "h1.Title",
-    year:          ".Date",
-  },
-  frenchstream: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".card.mb-3",
-    title:         ".card-title",
-    poster:        "img.card-img-top",
-    link:          "a",
-    type:          ".card-body small",
-    serverBlock:   ".embed-responsive iframe",
-    serverId:      "src",
-    serverAjax:    null,
-    episodeList:   ".season-episodes a",
-    episodeSeason: "data-season",
-    episodeNum:    "data-episode",
-    imdbLink:      'a[href*="imdb.com"]',
-    plot:          ".card-text",
-    heading:       "h1",
-    year:          ".date",
-  },
-  vffr: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".result-item",
-    title:         ".title a",
-    poster:        "img",
-    link:          ".title a",
-    type:          "span.Qlty",
-    serverBlock:   ".dooplay_player_option",
-    serverId:      "data-post",
-    serverAjax:    (base, id) => `${base}/wp-admin/admin-ajax.php`,
-    episodeList:   ".episodios li a",
-    episodeSeason: "data-season",
-    episodeNum:    "data-number",
-    imdbLink:      null,
-    plot:          ".wp-content p",
-    heading:       "h1.entry-title",
-    year:          ".date",
-  },
-  filman: {
-    searchUrl:     (base, q) => `${base}/search?query=${encodeURIComponent(q)}`,
-    item:          ".poster.tip",
-    title:         "img[title]",
-    poster:        "img",
-    link:          "a",
-    type:          ".film-type",
-    serverBlock:   ".server-item",
-    serverId:      "data-url",
-    serverAjax:    null,
-    episodeList:   ".episode-list a",
-    episodeSeason: "data-season",
-    episodeNum:    "data-episode",
-    imdbLink:      null,
-    plot:          ".plot",
-    heading:       "h2.title",
-    year:          ".year",
-  },
-  wco: {
-    searchUrl:     (base, q) => `${base}/search-by-letter/?search=${encodeURIComponent(q)}`,
-    item:          ".video-block",
-    title:         ".name",
-    poster:        "img",
-    link:          "a",
-    type:          ".status",
-    serverBlock:   ".server-item",
-    serverId:      "data-video",
-    serverAjax:    null,
-    episodeList:   ".cat-eps a",
-    episodeSeason: null,
-    episodeNum:    "data-episode",
-    imdbLink:      null,
-    plot:          "#series-description p",
-    heading:       "h2.video-title",
-    year:          ".year",
-  },
-  yomovies: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".movies-list .ml-item",
-    title:         ".mli-info h2",
-    poster:        "img.mli-thumb",
-    link:          "a",
-    type:          ".mli-quality",
-    serverBlock:   ".movieplay iframe",
-    serverId:      "src",
-    serverAjax:    null,
-    episodeList:   ".se-c .se-a li a",
-    episodeSeason: "data-season",
-    episodeNum:    "data-episode",
-    imdbLink:      'a[href*="imdb.com"]',
-    plot:          ".mvici-left p",
-    heading:       "h3",
-    year:          ".mvici-right p",
-  },
-  lookmovie: {
-    searchUrl:     (base, q) => `${base}/search/?q=${encodeURIComponent(q)}`,
-    item:          ".movie-item",
-    title:         ".movie-title",
-    poster:        "img.movie-poster",
-    link:          "a",
-    type:          ".movie-type",
-    serverBlock:   ".server",
-    serverId:      "data-id",
-    serverAjax:    null,
-    episodeList:   ".episode-list a",
-    episodeSeason: "data-season",
-    episodeNum:    "data-episode",
-    imdbLink:      'a[href*="imdb.com"]',
-    plot:          ".movie-description",
-    heading:       "h1.movie-title",
-    year:          ".movie-year",
-  },
-  allmovies: {
-    searchUrl:     (base, q) => `${base}/?s=${encodeURIComponent(q)}`,
-    item:          ".result-item",
-    title:         ".title a",
-    poster:        "img",
-    link:          ".title a",
-    type:          "span.Qlty",
-    serverBlock:   ".dooplay_player_option",
-    serverId:      "data-post",
-    serverAjax:    (base, id) => `${base}/wp-admin/admin-ajax.php`,
-    episodeList:   ".episodios li a",
-    episodeSeason: "data-season",
-    episodeNum:    "data-number",
-    imdbLink:      'a[href*="imdb.com"]',
-    plot:          ".wp-content p",
-    heading:       "h1.entry-title",
-    year:          ".date",
-  },
-  ihavenotv: {
-    searchUrl:     (base, q) => `${base}/search/?q=${encodeURIComponent(q)}`,
-    item:          ".content-item",
-    title:         ".title",
-    poster:        "img.thumbnail",
-    link:          "a",
-    type:          ".tag",
-    serverBlock:   ".video-wrap iframe",
-    serverId:      "src",
-    serverAjax:    null,
-    episodeList:   ".episodes a",
-    episodeSeason: null,
-    episodeNum:    "data-episode",
-    imdbLink:      null,
-    plot:          ".description",
-    heading:       "h1.title",
-    year:          ".year",
-  },
-};
-
-class StormExtAll extends Plugin {
-  constructor() {
-    super();
-    this.name = "StormExt All Sources";
-    this.omdbKey = "5276c879";
-  }
-
-  async search(query) {
-    const results = [];
-    for (const provider of PROVIDERS) {
-      try {
-        const sel = SELECTORS[provider.type];
-        if (!sel) continue;
-        const searchUrl = sel.searchUrl(provider.url, query);
-        const res = await axios.get(searchUrl, {
-          headers: { "User-Agent": "Mozilla/5.0", "Accept-Language": "en-US,en;q=0.9" },
-          timeout: 8000,
-        });
-        const $ = cheerio.load(res.data);
-        $(sel.item).each((i, el) => {
-          const href   = $(el).find(sel.link).attr("href") || $(el).find("a").attr("href");
-          const title  = $(el).find(sel.title).text().trim() || $(el).find("img").attr("alt") || "";
-          const poster = $(el).find(sel.poster).attr("data-src") || $(el).find(sel.poster).attr("src") || "";
-          const type   = ($(el).find(sel.type).text().trim().toLowerCase().includes("movie")) ? "movie" : "series";
-          if (href && title) {
-            results.push({
-              id:           href,
-              title,
-              poster,
-              type,
-              provider:     provider.id,
-              providerName: provider.name,
-              baseUrl:      provider.url,
-              selectorType: provider.type,
-              lang:         provider.lang,
-            });
-          }
-        });
-      } catch (e) {
-        console.warn(`[${provider.name}] Search failed: ${e.message}`);
-      }
-    }
-    return results;
-  }
-
-  async getMetadata(item) {
-    const sel = SELECTORS[item.selectorType];
-    const url = item.id.startsWith("http") ? item.id : `${item.baseUrl}${item.id}`;
-    const res = await axios.get(url, {
-      headers: { "User-Agent": "Mozilla/5.0" },
-      timeout: 10000,
-    });
-    const $ = cheerio.load(res.data);
-
-    const imdbLink = sel.imdbLink ? $(sel.imdbLink).attr("href") || "" : "";
-    const imdbId   = (imdbLink.match(/ttd+/) || [])[0] || null;
-
-    let imdbData = {};
-    if (imdbId) {
-      try {
-        const omdb = await axios.get(
-          `https://www.omdbapi.com/?i=${imdbId}&apikey=${this.omdbKey}`
-        );
-        imdbData = omdb.data;
-      } catch (e) {
-        console.warn("OMDb failed:", e.message);
-      }
-    }
-
-    const title = $(sel.heading).first().text().trim() || imdbData.Title || item.title;
-    const plot  = sel.plot ? $(sel.plot).first().text().trim() : (imdbData.Plot || "");
-    const year  = sel.year ? $(sel.year).first().text().trim() : (imdbData.Year || "");
-
+// ─── MANIFEST ────────────────────────────────────────────────────────────────
+function getManifest() {
     return {
-      _id:           imdbId || `${item.provider}_${encodeURIComponent(item.id)}`,
-      title,
-      originalTitle: imdbData.Title || title,
-      year:          imdbData.Year  || year,
-      type:          item.type,
-      plot:          imdbData.Plot  || plot,
-      imdbRating:    imdbData.imdbRating || null,
-      imdbId,
-      genres:        (imdbData.Genre    || "").split(", ").filter(Boolean),
-      cast:          (imdbData.Actors   || "").split(", ").filter(Boolean),
-      director:      imdbData.Director  || null,
-      language:      imdbData.Language  || item.lang,
-      country:       imdbData.Country   || null,
-      poster:        imdbData.Poster    || item.poster,
-      runtime:       imdbData.Runtime   || null,
-      rated:         imdbData.Rated     || null,
-      awards:        imdbData.Awards    || null,
-      provider:      item.providerName,
-      sourceUrl:     url,
-      fetchedAt:     new Date().toISOString(),
-      episodes:      item.type === "series" ? await this.getEpisodes(item, $, sel) : [],
+        name: "StormExt All Sources",
+        id: "com.rheno911.stormext",
+        version: 1,
+        baseUrl: "https://sflix.to",
+        type: "Movie",
+        language: "en"
     };
-  }
-
-  async getEpisodes(item, $, sel) {
-    const eps = [];
-    $(sel.episodeList).each((i, el) => {
-      const season  = sel.episodeSeason ? parseInt($(el).attr(sel.episodeSeason) || "1") : 1;
-      const episode = sel.episodeNum    ? parseInt($(el).attr(sel.episodeNum)    || i + 1) : i + 1;
-      const href    = $(el).attr("href") || "";
-      eps.push({
-        season,
-        episode,
-        title: $(el).text().trim() || `Episode ${episode}`,
-        url:   href.startsWith("http") ? href : `${item.baseUrl}${href}`,
-      });
-    });
-    return eps;
-  }
-
-  async getSources(item, episode = null) {
-    const sel       = SELECTORS[item.selectorType];
-    const targetUrl = episode
-      ? episode.url
-      : (item.id.startsWith("http") ? item.id : `${item.baseUrl}${item.id}`);
-    const res = await axios.get(targetUrl, {
-      headers: { "User-Agent": "Mozilla/5.0" },
-      timeout: 10000,
-    });
-    const $       = cheerio.load(res.data);
-    const sources = [];
-    const servers = [];
-
-    $(sel.serverBlock).each((i, el) => {
-      const sid  = $(el).attr(sel.serverId) || $(el).find("a").attr(sel.serverId);
-      const name = $(el).text().trim() || `Server ${i + 1}`;
-      if (sid) servers.push({ name, serverId: sid });
-    });
-
-    for (const server of servers) {
-      try {
-        let embedUrl = server.serverId;
-        if (sel.serverAjax && !server.serverId.startsWith("http")) {
-          const ajaxUrl = sel.serverAjax(item.baseUrl, server.serverId);
-          const ajaxRes = await axios.get(ajaxUrl, {
-            headers: {
-              "X-Requested-With": "XMLHttpRequest",
-              Referer: item.baseUrl,
-            },
-          });
-          embedUrl = ajaxRes.data?.link || ajaxRes.data?.url || null;
-        }
-        if (!embedUrl) continue;
-        const manifest = await this.extractManifest(embedUrl, item.baseUrl);
-        if (manifest.url) {
-          sources.push({
-            server:       server.name,
-            url:          manifest.url,
-            quality:      manifest.quality || "auto",
-            isM3U8:       manifest.isM3U8,
-            audioTracks:  manifest.audioTracks,
-            subtitles:    manifest.subtitles,
-            headers:      { Referer: item.baseUrl },
-          });
-        }
-      } catch (e) {
-        console.warn(`[${server.name}] source failed: ${e.message}`);
-      }
-    }
-    return sources;
-  }
-
-  async extractManifest(embedUrl, referer) {
-    const res = await axios.get(embedUrl, {
-      headers: { Referer: referer, "User-Agent": "Mozilla/5.0" },
-      timeout: 8000,
-    });
-    const $       = cheerio.load(res.data);
-    const scripts = $("script").map((i, el) => $(el).html()).get().join("
-");
-
-    const m3u8Match = scripts.match(/https?://[^"'s\\]+.m3u8[^"'s\\]*/);
-    const mp4Match  = scripts.match(/https?://[^"'s\\]+.mp4[^"'s\\]*/);
-    const streamUrl = m3u8Match?.[0] || mp4Match?.[0] || null;
-    const isM3U8    = !!m3u8Match;
-
-    const audioTracks = [];
-    if (isM3U8 && streamUrl) {
-      try {
-        const m3u8Res = await axios.get(streamUrl, {
-          headers: { Referer: embedUrl },
-          timeout: 6000,
-        });
-        const lines = m3u8Res.data.split("
-");
-        lines.forEach(line => {
-          if (line.startsWith("#EXT-X-MEDIA") && line.includes("TYPE=AUDIO")) {
-            const lang      = (line.match(/LANGUAGE="([^"]+)"/) || [])[1] || "und";
-            const name      = (line.match(/NAME="([^"]+)"/)     || [])[1] || lang;
-            const uri       = (line.match(/URI="([^"]+)"/)       || [])[1] || null;
-            const isDefault = line.includes("DEFAULT=YES");
-            audioTracks.push({ lang, name, uri, default: isDefault });
-          }
-        });
-      } catch (e) {
-        console.warn("M3U8 parse error:", e.message);
-      }
-    }
-
-    return {
-      url:         streamUrl,
-      isM3U8,
-      quality:     "auto",
-      audioTracks,
-      subtitles:   this.extractSubtitles($),
-    };
-  }
-
-  extractSubtitles($) {
-    const subs = [];
-    $("track[kind='subtitles'], track[kind='captions']").each((i, el) => {
-      subs.push({
-        lang:  $(el).attr("srclang") || "en",
-        label: $(el).attr("label")   || "Subtitle",
-        url:   $(el).attr("src"),
-      });
-    });
-    return subs;
-  }
 }
 
-module.exports = StormExtAll;
+const commonHeaders = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept-Language": "en-US,en;q=0.9"
+};
+
+// ─── HOME PAGE ────────────────────────────────────────────────────────────────
+function getHome(callback) {
+    var categories = [
+        { title: "Trending Movies", url: "https://sflix.to/home" },
+        { title: "Latest Series",   url: "https://sflix.to/tv-show" },
+        { title: "Anime",           url: "https://gogoanime.sk/popular.html" },
+        { title: "Spanish Movies",  url: "https://cuevana3.me/peliculas" },
+        { title: "KDrama",          url: "https://dramasee.net/home" }
+    ];
+
+    var results = [];
+    var pending = categories.length;
+
+    categories.forEach(function(cat) {
+        http_get(cat.url, commonHeaders, function(status, html) {
+            var items = [];
+            // FLW-style sites (sflix, dopebox etc)
+            var flwReg = /class="flw-item"[sS]*?href="([^"]+)"[sS]*?data-src="([^"]+)"[sS]*?class="film-name[^"]*"[^>]*>([^<]+)</g;
+            var m;
+            while ((m = flwReg.exec(html)) !== null) {
+                items.push({ name: m[3].trim(), link: m[1], image: m[2], description: "" });
+            }
+            // WordPress/TPost style (cuevana, pelisplus etc)
+            if (items.length === 0) {
+                var wpReg = /class="TPost[^"]*"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="Title"[^>]*>([^<]+)</g;
+                while ((m = wpReg.exec(html)) !== null) {
+                    items.push({ name: m[3].trim(), link: m[1], image: m[2], description: "" });
+                }
+            }
+            // GogoAnime style
+            if (items.length === 0) {
+                var gogoReg = /<li>[sS]*?<a href="([^"]+)"[sS]*?<img src="([^"]+)"[sS]*?<p class="name">[sS]*?<a[^>]+>([^<]+)</g;
+                while ((m = gogoReg.exec(html)) !== null) {
+                    items.push({ name: m[3].trim(), link: m[1], image: m[2], description: "" });
+                }
+            }
+            results.push({ title: cat.title, Data: items });
+            pending--;
+            if (pending === 0) {
+                callback(JSON.stringify(results));
+            }
+        });
+    });
+}
+
+// ─── SEARCH ───────────────────────────────────────────────────────────────────
+function search(query, callback) {
+    var providers = [
+        { name: "Sflix",       url: "https://sflix.to/search?keyword="          + encodeURIComponent(query), type: "flw"      },
+        { name: "Cuevana3",    url: "https://cuevana3.me/?s="                   + encodeURIComponent(query), type: "wp"       },
+        { name: "Cinecalidad", url: "https://cinecalidad.lol/?s="               + encodeURIComponent(query), type: "wp"       },
+        { name: "Pelisplus",   url: "https://pelisplus.icu/search?s="           + encodeURIComponent(query), type: "card"     },
+        { name: "GogoAnime",   url: "https://gogoanime.sk/search.html?keyword=" + encodeURIComponent(query), type: "gogo"     },
+        { name: "AnimeFlv",    url: "https://www3.animeflv.net/browse?q="       + encodeURIComponent(query), type: "animeflv" },
+        { name: "DramaSee",    url: "https://dramasee.net/?s="                  + encodeURIComponent(query), type: "flw"      },
+        { name: "Akwam",       url: "https://akwam.to/search?q="                + encodeURIComponent(query), type: "akwam"   },
+        { name: "MyCima",      url: "https://mycima.tv/?s="                     + encodeURIComponent(query), type: "mycima"  },
+        { name: "Yomovies",    url: "https://yomovies.vip/?s="                  + encodeURIComponent(query), type: "wp"       },
+        { name: "WCO",         url: "https://wcostream.cc/search-by-letter/?search=" + encodeURIComponent(query), type: "wco" },
+        { name: "PelisplusHD", url: "https://pelisplushd.net/search?s="        + encodeURIComponent(query), type: "card"     },
+        { name: "Seriesflix",  url: "https://seriesflix.video/?s="              + encodeURIComponent(query), type: "wp"       },
+        { name: "AsianLoad",   url: "https://asianembed.io/?s="                 + encodeURIComponent(query), type: "asian"    },
+        { name: "KDramaHood",  url: "https://kdramahood.com/?s="                + encodeURIComponent(query), type: "wp"       }
+    ];
+
+    var allResults = [];
+    var pending = providers.length;
+
+    providers.forEach(function(p) {
+        http_get(p.url, commonHeaders, function(status, html) {
+            var items = parseResults(html, p.type, p.name);
+            items.forEach(function(i) { allResults.push(i); });
+            pending--;
+            if (pending === 0) {
+                callback(JSON.stringify([{ title: "Search Results", Data: allResults }]));
+            }
+        });
+    });
+}
+
+function parseResults(html, type, sourceName) {
+    var items = [];
+    var m;
+    if (type === "flw") {
+        var r = /href="([^"]+)"[^>]*class="film-poster-ahref[sS]*?data-src="([^"]+)"[sS]*?class="film-name[^"]*"[^>]*>([^<]+)</g;
+        while ((m = r.exec(html)) !== null) {
+            items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
+        }
+    } else if (type === "wp") {
+        var r2 = /class="TPost[^"]*"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="Title"[^>]*>([^<]+)</g;
+        while ((m = r2.exec(html)) !== null) {
+            items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
+        }
+        if (items.length === 0) {
+            var r3 = /class="result-item"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="title"[^>]*><a[^>]+>([^<]+)</g;
+            while ((m = r3.exec(html)) !== null) {
+                items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
+            }
+        }
+    } else if (type === "card") {
+        var r4 = /class="card-movie"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="card-title"[^>]*>([^<]+)</g;
+        while ((m = r4.exec(html)) !== null) {
+            items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
+        }
+    } else if (type === "gogo") {
+        var r5 = /<li>[sS]*?<a href="([^"]+)"[sS]*?<img src="([^"]+)"[sS]*?<p class="name">[sS]*?<a[^>]+>([^<]+)</g;
+        while ((m = r5.exec(html)) !== null) {
+            items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: "https://gogoanime.sk" + m[1], image: m[2], description: sourceName });
+        }
+    } else if (type === "animeflv") {
+        var r6 = /class="ListAnimes"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="Title"[^>]*>([^<]+)</g;
+        while ((m = r6.exec(html)) !== null) {
+            items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: "https://www3.animeflv.net" + m[1], image: m[2], description: sourceName });
+        }
+    } else if (type === "akwam") {
+        var r7 = /class="entry-box"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="entry-title"[^>]*>([^<]+)</g;
+        while ((m = r7.exec(html)) !== null) {
+            items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
+        }
+    } else if (type === "mycima") {
+        var r8 = /class="GridItem"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="hasyear"[^>]*>([^<]+)</g;
+        while ((m = r8.exec(html)) !== null) {
+            items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
+        }
+    } else if (type === "asian") {
+        var r9 = /class="video-block"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="title"[^>]*>([^<]+)</g;
+        while ((m = r9.exec(html)) !== null) {
+            items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
+        }
+    } else if (type === "wco") {
+        var r10 = /class="video-block"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="name"[^>]*>([^<]+)</g;
+        while ((m = r10.exec(html)) !== null) {
+            items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
+        }
+    }
+    return items;
+}
+
+// ─── LOAD DETAILS + IMDb METADATA ────────────────────────────────────────────
+function load(url, callback) {
+    http_get(url, commonHeaders, function(status, html) {
+        // Extract title
+        var titleM = html.match(/<h1[^>]*class="[^"]*(?:Title|heading-name|film-name|entry-title)[^"]*"[^>]*>([^<]+)</) ||
+                     html.match(/<title>([^<|–-]+)/);
+        var title = titleM ? titleM[1].trim() : "Unknown Title";
+
+        // Extract description
+        var plotM = html.match(/class="[^"]*(?:description|Description|StoryLine|synopsis|wp-content)[^"]*"[^>]*>s*<p[^>]*>([^<]+)</) ||
+                    html.match(/class="[^"]*(?:description|Description)[^"]*"[^>]*>([^<]+)</);
+        var plot = plotM ? plotM[1].trim() : "";
+
+        // Extract year
+        var yearM = html.match(/class="[^"]*(?:year|Date|item year)[^"]*"[^>]*>([^<]+)</) ||
+                    html.match(/(\b20[0-2][0-9]\b)/);
+        var year = yearM ? parseInt(yearM[1]) : 0;
+
+        // Extract poster
+        var posterM = html.match(/property="og:image"s+content="([^"]+)"/) ||
+                      html.match(/class="[^"]*(?:film-poster-img|CoverLazy)[^"]*"[^>]*src="([^"]+)"/);
+        var poster = posterM ? posterM[1] : "";
+
+        // Extract IMDb ID and fetch metadata
+        var imdbM = html.match(/imdb.com/title/(ttd+)/);
+        var imdbId = imdbM ? imdbM[1] : null;
+
+        if (imdbId) {
+            var omdbUrl = "https://www.omdbapi.com/?i=" + imdbId + "&apikey=5276c879";
+            http_get(omdbUrl, {}, function(s2, omdbRaw) {
+                try {
+                    var omdb = JSON.parse(omdbRaw);
+                    callback(JSON.stringify({
+                        url: url,
+                        data: html,
+                        title: omdb.Title || title,
+                        description: omdb.Plot || plot,
+                        year: parseInt(omdb.Year) || year,
+                        subtitle: "⭐ " + (omdb.imdbRating || "N/A") + " | " + (omdb.Genre || "") + " | " + (omdb.Runtime || ""),
+                        image: omdb.Poster !== "N/A" ? omdb.Poster : poster
+                    }));
+                } catch(e) {
+                    callback(JSON.stringify({ url: url, data: html, title: title, description: plot, year: year }));
+                }
+            });
+        } else {
+            callback(JSON.stringify({ url: url, data: html, title: title, description: plot, year: year, image: poster }));
+        }
+    });
+}
+
+// ─── LOAD STREAMS + MULTI-AUDIO ──────────────────────────────────────────────
+function loadStreams(url, callback) {
+    http_get(url, commonHeaders, function(status, html) {
+        var streams = [];
+
+        // 1. Direct M3U8 in page scripts
+        var m3u8Matches = html.match(/https?://[^s"'\\]+.m3u8[^s"'\\]*/g);
+        if (m3u8Matches) {
+            m3u8Matches.forEach(function(m3u8Url, i) {
+                streams.push({
+                    name: "HLS Stream " + (i + 1),
+                    url: m3u8Url,
+                    headers: commonHeaders,
+                    subtitles: []
+                });
+            });
+        }
+
+        // 2. Direct MP4 links
+        var mp4Matches = html.match(/https?://[^s"'\\]+.mp4[^s"'\\]*/g);
+        if (mp4Matches) {
+            mp4Matches.forEach(function(mp4Url, i) {
+                streams.push({
+                    name: "MP4 Stream " + (i + 1),
+                    url: mp4Url,
+                    headers: commonHeaders,
+                    subtitles: []
+                });
+            });
+        }
+
+        // 3. FLW Ajax server extraction (sflix, dopebox, dramasee etc.)
+        var serverIds = [];
+        var serverReg = /data-id="(d+)"[^>]*class="[^"]*nav-item/g;
+        var sm;
+        while ((sm = serverReg.exec(html)) !== null) {
+            serverIds.push(sm[1]);
+        }
+
+        if (serverIds.length > 0) {
+            var pending = serverIds.length;
+            serverIds.forEach(function(sid) {
+                var ajaxUrl = url.split("/").slice(0, 3).join("/") + "/ajax/sources/" + sid;
+                http_get(ajaxUrl, {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Referer": url,
+                    "User-Agent": commonHeaders["User-Agent"]
+                }, function(s2, ajaxRaw) {
+                    try {
+                        var ajaxData = JSON.parse(ajaxRaw);
+                        var embedUrl = ajaxData.link || ajaxData.url || null;
+                        if (embedUrl) {
+                            http_get(embedUrl, { "Referer": url, "User-Agent": commonHeaders["User-Agent"] }, function(s3, embedHtml) {
+                                var em3u8 = embedHtml.match(/https?://[^s"'\\]+.m3u8[^s"'\\]*/);
+                                if (em3u8) {
+                                    streams.push({
+                                        name: "Server " + sid,
+                                        url: em3u8[0],
+                                        headers: { "Referer": embedUrl, "User-Agent": commonHeaders["User-Agent"] },
+                                        subtitles: extractSubtitles(embedHtml)
+                                    });
+                                }
+                                pending--;
+                                if (pending === 0) callback(JSON.stringify(streams));
+                            });
+                        } else {
+                            pending--;
+                            if (pending === 0) callback(JSON.stringify(streams));
+                        }
+                    } catch(e) {
+                        pending--;
+                        if (pending === 0) callback(JSON.stringify(streams));
+                    }
+                });
+            });
+        } else {
+            // 4. WordPress dooplay player (cuevana, pelismart, seriesflix etc.)
+            var dooReg = /class="dooplay_player_option"[^>]*data-post="(d+)"[^>]*data-type="([^"]+)"/g;
+            var dooIds = [];
+            var dm;
+            while ((dm = dooReg.exec(html)) !== null) {
+                dooIds.push({ post: dm[1], type: dm[2] });
+            }
+
+            if (dooIds.length > 0) {
+                var base = url.split("/").slice(0, 3).join("/");
+                var p2 = dooIds.length;
+                dooIds.forEach(function(d) {
+                    http_get(base + "/wp-admin/admin-ajax.php", {
+                        "Content-Type": "application/x-www-form-urlencoded",
+                        "X-Requested-With": "XMLHttpRequest",
+                        "Referer": url,
+                        "User-Agent": commonHeaders["User-Agent"]
+                    }, function(s2, dooRaw) {
+                        try {
+                            var dooData = JSON.parse(dooRaw);
+                            var embedUrl = dooData.embed_url || dooData.url || null;
+                            if (embedUrl) {
+                                var m3u8 = embedUrl.match(/https?://[^s"'\\]+.m3u8[^s"'\\]*/);
+                                if (m3u8) {
+                                    streams.push({
+                                        name: "WP Server " + d.post,
+                                        url: m3u8[0],
+                                        headers: { "Referer": base, "User-Agent": commonHeaders["User-Agent"] },
+                                        subtitles: []
+                                    });
+                                }
+                            }
+                        } catch(e) {}
+                        p2--;
+                        if (p2 === 0) callback(JSON.stringify(streams));
+                    });
+                });
+            } else {
+                // If no streams found, return empty
+                if (streams.length === 0) {
+                    streams.push({ name: "No streams found", url: "", headers: {}, subtitles: [] });
+                }
+                callback(JSON.stringify(streams));
+            }
+        }
+    });
+}
+
+// ─── SUBTITLE HELPER ─────────────────────────────────────────────────────────
+function extractSubtitles(html) {
+    var subs = [];
+    var subReg = /kind="(?:subtitles|captions)"[^>]*srclang="([^"]+)"[^>]*label="([^"]+)"[^>]*src="([^"]+)"/g;
+    var m;
+    while ((m = subReg.exec(html)) !== null) {
+        subs.push({ label: m[2], url: m[3] });
+    }
+    return subs;
+}
