@@ -1,0 +1,9 @@
+{
+  "name": "StormExt All Sources",
+  "id": "storm_ext_all",
+  "description": "All storm-ext providers converted for SkyStream",
+  "manifestVersion": 1,
+  "pluginLists": [
+    "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/main/plugins.json"
+  ]
+}
