@@ -4,7 +4,7 @@
     "internalName": "StormExtAllSources",
     "url": "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/main/plugin.sky",
     "icon": "",
-    "version": 1,
+    "version": 2,
     "description": "40+ streaming providers",
     "authors": ["rheno911"],
     "language": "en",
