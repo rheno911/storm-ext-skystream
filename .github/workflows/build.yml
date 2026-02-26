@@ -7,20 +7,27 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Build plugin.sky (zip plugin.js at ROOT, no folder)
+      - name: Remove old plugin.sky
+        run: rm -f plugin.sky
+
+      - name: Build fresh plugin.sky from plugin.js
         run: zip -j plugin.sky plugin.js
 
-      - name: Verify zip contents
-        run: unzip -l plugin.sky
+      - name: Verify plugin.js is at root of zip
+        run: |
+          unzip -l plugin.sky
+          unzip -p plugin.sky plugin.js | head -5
 
       - name: Commit and push plugin.sky
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add -f plugin.sky
-          git diff --staged --quiet || git commit -m "Rebuild plugin.sky from plugin.js"
+          git diff --staged --quiet || git commit -m "Rebuild plugin.sky [$(date +%Y%m%d-%H%M%S)]"
           git push
