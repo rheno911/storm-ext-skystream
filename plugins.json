@@ -1,11 +1,11 @@
 [
   {
-    "name": "StormExt All Sources",
-    "internalName": "StormExtAllSources",
-    "url": "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/main/plugin.sky",
+    "name": "Net22 Sources",
+    "internalName": "Net22Sources",
+    "url": "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/main/plugin.js",
     "icon": "",
-    "version": 2,
-    "description": "40+ streaming providers",
+    "version": 3,
+    "description": "Net22.cc streaming provider",
     "authors": ["rheno911"],
     "language": "en",
     "types": ["Movies", "TV"]
