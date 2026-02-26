@@ -1,7 +1,7 @@
 {
   "name": "Net22 Sources Repo",
   "id": "com.rheno911.net22.repo",
-  "description": "Net22.cc streaming provider by rheno911",
+  "description": "Net22.cc provider",
   "manifestVersion": 1,
   "pluginLists": [
     "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/main/plugins.json"
