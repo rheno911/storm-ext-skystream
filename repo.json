@@ -1,7 +1,18 @@
 {
   "name": "StormExt All Sources",
-  "description": "40+ streaming providers",
+  "id": "com.rheno911.stormext.repo",
   "version": 1,
   "author": "rheno911",
-  "pluginsUrl": "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/refs/heads/main/plugins.json"
+  "description": "40+ streaming providers",
+  "plugins": [
+    {
+      "id": "com.rheno911.stormext",
+      "name": "StormExt All Sources",
+      "url": "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/refs/heads/main/plugin.sky",
+      "version": 10,
+      "authors": ["rheno911"],
+      "description": "40+ streaming providers",
+      "language": "en"
+    }
+  ]
 }
