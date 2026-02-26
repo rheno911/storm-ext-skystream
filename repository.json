@@ -1,8 +1,7 @@
 {
   "name": "StormExt All Sources",
-  "description": "All storm-ext providers converted for SkyStream",
-  "version": "1.0.0",
-  "plugins": [
+  "id": "storm_ext_all",
+  "repos": [
     {
       "id": "storm_ext_all",
       "name": "StormExt All Sources",
