@@ -1,11 +1,8 @@
 {
-"name": "StormExt",
-"id": "stormext",
-"repos": [
-{
-"name": "StormExt All Sources",
-"id": "stormext_all",
-"url": "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/main/plugin.sky"
-}
-]
+  "name": "StormExt All Sources",
+  "id": "com.rheno911.stormext",
+  "manifestVersion": 1,
+  "pluginLists": [
+    "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/refs/heads/main/plugins.json"
+  ]
 }
