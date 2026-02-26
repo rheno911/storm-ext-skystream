@@ -3,7 +3,14 @@
   "id": "storm_ext_all",
   "description": "All storm-ext providers converted for SkyStream",
   "manifestVersion": 1,
-  "pluginLists": [
-    "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/main/plugins.json"
+  "plugins": [
+    {
+      "id": "storm_ext_all",
+      "name": "StormExt All Sources",
+      "version": "1.0.0",
+      "description": "40+ sites with IMDb, multi-audio, movies, series, anime",
+      "url": "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/main/plugin.js",
+      "pluginJson": "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/main/plugin.json"
+    }
   ]
 }
