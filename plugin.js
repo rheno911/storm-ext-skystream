@@ -9,7 +9,7 @@ function getManifest() {
     return {
         name: "StormExt All Sources",
         id: "com.rheno911.stormext",
-        version: 2,
+        version: 3,
         baseUrl: mainUrl,
         type: "Movie",
         language: "en"
@@ -18,16 +18,21 @@ function getManifest() {
 
 function parseMovies(html, base) {
     var results = [];
-    var cardRegex = /<div[^>]*class="[^"]*flw-item[^"]*"[sS]*?href="([^"]+)"[sS]*?(?:data-src|src)="(https://[^"]+.(?:jpg|png|webp)[^"]*)"[sS]*?class="[^"]*film-name[^"]*"[^>]*>s*<a[^>]*>([^<]+)</a>/g;
-    var match;
-    while ((match = cardRegex.exec(html)) !== null) {
-        var link = match[1].indexOf("http") === 0 ? match[1] : base + match[1];
-        results.push({
-            name: match[3].trim(),
-            link: link,
-            image: match[2],
-            description: ""
-        });
+    var parts = html.split("flw-item");
+    for (var i = 1; i < parts.length; i++) {
+        var block = parts[i];
+        var linkMatch  = block.match(/href="([^"]+)"/);
+        var imgMatch   = block.match(/(?:data-src|src)="(https:[^"]+.(?:jpg|png|webp)[^"]*)"/);
+        var nameMatch  = block.match(/film-name[^>]*>[^<]*<a[^>]*>([^<]+)</);
+        if (linkMatch && nameMatch) {
+            var link = linkMatch[1].indexOf("http") === 0 ? linkMatch[1] : base + linkMatch[1];
+            results.push({
+                name: nameMatch[1].trim(),
+                link: link,
+                image: imgMatch ? imgMatch[1] : "",
+                description: ""
+            });
+        }
     }
     return results;
 }
@@ -62,10 +67,10 @@ function search(query, callback) {
 
 function load(url, callback) {
     http_get(url, commonHeaders, function(status, html) {
-        var titleMatch  = /<h2[^>]*class="[^"]*heading-name[^"]*"[^>]*>s*<a[^>]*>([^<]+)</.exec(html);
-        var descMatch   = /<div[^>]*class="[^"]*description[^"]*"[^>]*>s*<p[^>]*>([^<]+)</.exec(html);
-        var imgMatch    = /<img[^>]*class="[^"]*film-poster-img[^"]*"[^>]+(?:src|data-src)="([^"]+)"/.exec(html);
-        var serverMatch = /data-id="([^"]+)"[^>]*class="[^"]*btn-play[^"]*"/.exec(html);
+        var titleMatch  = html.match(/heading-name[^>]*>[^<]*<a[^>]*>([^<]+)</);
+        var descMatch   = html.match(/class="description"[^>]*>[^<]*<p[^>]*>([^<]+)</);
+        var imgMatch    = html.match(/film-poster-img[^>]+(?:src|data-src)="([^"]+)"/);
+        var serverMatch = html.match(/data-id="([^"]+)"[^>]*class="[^"]*btn-play/);
         callback(JSON.stringify({
             url: url,
             data: serverMatch ? serverMatch[1] : url,
@@ -82,21 +87,19 @@ function loadStreams(url, callback) {
     http_get(sourcesUrl, commonHeaders, function(status, data) {
         var streams = [];
         try {
-            var json = JSON.parse(data);
-            var html = json.html || json.link || data;
-            var m3u8Regex = /["']?(https?://[^"'s]+.m3u8[^"'s]*)["']?/g;
-            var match;
-            while ((match = m3u8Regex.exec(html)) !== null) {
-                streams.push({ name: "Auto", url: match[1], headers: commonHeaders });
+            var parsed = JSON.parse(data);
+            var content = parsed.html || parsed.link || data;
+            var parts = content.split(".m3u8");
+            for (var i = 0; i < parts.length - 1; i++) {
+                var chunk = parts[i];
+                var start = chunk.lastIndexOf('"');
+                if (start === -1) start = chunk.lastIndexOf("'");
+                if (start !== -1) {
+                    var streamUrl = chunk.substring(start + 1) + ".m3u8";
+                    streams.push({ name: "Auto " + (i + 1), url: streamUrl, headers: commonHeaders });
+                }
             }
         } catch(e) {}
-        if (streams.length === 0) {
-            var m3u8Regex2 = /["']?(https?://[^"'s]+.m3u8[^"'s]*)["']?/g;
-            var match2;
-            while ((match2 = m3u8Regex2.exec(data)) !== null) {
-                streams.push({ name: "Auto", url: match2[1], headers: commonHeaders });
-            }
-        }
         callback(JSON.stringify(streams));
     });
 }
