@@ -43,7 +43,7 @@ function parseHtml(html) {
         var hm = b.match(/href="(https?:[^"]{5,200})"/);
         if (!hm) hm = b.match(/href="(\/[^"]{2,200})"/);
         var im = b.match(/data-src="(https?:[^"]{5,200})"/);
-        if (!im) im = b.match(/src="(https?:[^"]{5,200}\.(?:jpg|png|webp)[^"]*)"/);
+        if (!im) im = b.match(/src="(https?:[^"]{5,200}\.(jpg|png|webp)[^"]*)"/);
         var nm = b.match(/title="([^"]{2,80})"/);
         if (!nm) nm = b.match(/<h[1-4][^>]*>([^<]{2,80})</);
         if (hm && nm) {
@@ -111,7 +111,7 @@ function loadStreams(url, callback) {
                 embeds.push(eu);
             }
         }
-        var dparts = html.split("data-embed=\"");
+        var dparts = html.split('data-embed="');
         for (var j = 1; j < dparts.length; j++) {
             var ev = dparts[j].split('"')[0];
             if (ev.indexOf(".") > -1) embeds.push((ev.charAt(0) === "/") ? mainUrl + ev : ev);
