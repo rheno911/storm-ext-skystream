@@ -10,15 +10,33 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Create plugin.sky from plugin.js
+      - name: Create plugin.sky (Dart-compatible ZIP)
         run: |
           python3 - <<'EOF'
-          import zipfile
+          import zipfile, io, struct
+
           with open('plugin.js', 'rb') as f:
               content = f.read()
-          with zipfile.ZipFile('plugin.sky', 'w', zipfile.ZIP_DEFLATED) as z:
-              z.writestr('plugin.js', content)
-          print("Created plugin.sky successfully")
+
+          buf = io.BytesIO()
+          with zipfile.ZipFile(buf, 'w', zipfile.ZIP_STORED) as z:
+              info = zipfile.ZipInfo('plugin.js')
+              info.compress_type = zipfile.ZIP_STORED
+              info.create_system = 0
+              info.create_version = 20
+              info.extract_version = 20
+              info.flag_bits = 0
+              z.writestr(info, content)
+
+          data = buf.getvalue()
+          extra_len = struct.unpack('<H', data[28:30])[0]
+          print(f"ZIP size: {len(data)} bytes")
+          print(f"Extra field length: {extra_len} (must be 0)")
+          print(f"First 4 bytes: {data[:4].hex()} (must be 504b0304)")
+
+          with open('plugin.sky', 'wb') as f:
+              f.write(data)
+          print("plugin.sky written successfully ✅")
           EOF
 
       - name: Commit plugin.sky
@@ -26,5 +44,5 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add plugin.sky
-          git commit -m "Rebuild plugin.sky" || echo "No changes"
+          git commit -m "Rebuild plugin.sky (Dart-compatible)" || echo "No changes"
           git push
