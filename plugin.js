@@ -9,28 +9,30 @@ function getManifest() {
     return {
         name: "StormExt All Sources",
         id: "com.rheno911.stormext",
-        version: 3,
+        version: 4,
         baseUrl: mainUrl,
         type: "Movie",
         language: "en"
     };
 }
 
-function parseMovies(html, base) {
+function parseItems(html) {
     var results = [];
-    var parts = html.split("flw-item");
-    for (var i = 1; i < parts.length; i++) {
-        var block = parts[i];
-        var linkMatch  = block.match(/href="([^"]+)"/);
-        var imgMatch   = block.match(/(?:data-src|src)="(https:[^"]+.(?:jpg|png|webp)[^"]*)"/);
-        var nameMatch  = block.match(/film-name[^>]*>[^<]*<a[^>]*>([^<]+)</);
+    var blocks = html.split("flw-item");
+    for (var i = 1; i < blocks.length; i++) {
+        var block = blocks[i];
+        var linkMatch = block.match(/href="([^"]+)"/);
+        var imgMatch  = block.match(/data-src="([^"]+)"/);
+        if (!imgMatch) imgMatch = block.match(/src="(https:[^"]+.(?:jpg|png|webp)[^"]*)"/);
+        var nameMatch = block.match(/film-name[^>]*>[^<]*<a[^>]*>([^<]+)</);
         if (linkMatch && nameMatch) {
-            var link = linkMatch[1].indexOf("http") === 0 ? linkMatch[1] : base + linkMatch[1];
+            var href = linkMatch[1];
+            var fullUrl = href.indexOf("http") === 0 ? href : mainUrl + href;
             results.push({
-                name: nameMatch[1].trim(),
-                link: link,
-                image: imgMatch ? imgMatch[1] : "",
-                description: ""
+                title: nameMatch[1].trim(),
+                url: fullUrl,
+                posterUrl: imgMatch ? imgMatch[1] : "",
+                headers: commonHeaders
             });
         }
     }
@@ -43,16 +45,13 @@ function getHome(callback) {
         { title: "Latest Movies", url: mainUrl + "/movie" },
         { title: "Latest TV",     url: mainUrl + "/tv-show" }
     ];
-    var finalResult = [];
+    var resultMap = {};
     var pending = sections.length;
     sections.forEach(function(section) {
         http_get(section.url, commonHeaders, function(status, html) {
-            var items = parseMovies(html, mainUrl);
-            finalResult.push({ title: section.title, Data: items });
+            resultMap[section.title] = parseItems(html);
             pending--;
-            if (pending === 0) {
-                callback(JSON.stringify(finalResult));
-            }
+            if (pending === 0) { callback(JSON.stringify(resultMap)); }
         });
     });
 }
@@ -60,46 +59,63 @@ function getHome(callback) {
 function search(query, callback) {
     var url = mainUrl + "/search/" + encodeURIComponent(query);
     http_get(url, commonHeaders, function(status, html) {
-        var items = parseMovies(html, mainUrl);
-        callback(JSON.stringify([{ title: "Search Results", Data: items }]));
+        callback(JSON.stringify(parseItems(html)));
     });
 }
 
 function load(url, callback) {
     http_get(url, commonHeaders, function(status, html) {
-        var titleMatch  = html.match(/heading-name[^>]*>[^<]*<a[^>]*>([^<]+)</);
-        var descMatch   = html.match(/class="description"[^>]*>[^<]*<p[^>]*>([^<]+)</);
-        var imgMatch    = html.match(/film-poster-img[^>]+(?:src|data-src)="([^"]+)"/);
-        var serverMatch = html.match(/data-id="([^"]+)"[^>]*class="[^"]*btn-play/);
+        var titleMatch = html.match(/heading-name[^>]*>[^<]*<a[^>]*>([^<]+)</);
+        var descMatch  = html.match(/class="description"[^>]*>[^<]*<p[^>]*>([^<]+)</);
+        var imgMatch   = html.match(/film-poster-img[^>]+data-src="([^"]+)"/);
+        if (!imgMatch) imgMatch = html.match(/film-poster-img[^>]+src="([^"]+)"/);
+        var yearMatch  = html.match(/class="[^"]*year[^"]*"[^>]*>([^<]+)</);
         callback(JSON.stringify({
             url: url,
-            data: serverMatch ? serverMatch[1] : url,
+            data: html,
             title: titleMatch ? titleMatch[1].trim() : "",
             description: descMatch ? descMatch[1].trim() : "",
-            image: imgMatch ? imgMatch[1] : ""
+            posterUrl: imgMatch ? imgMatch[1] : "",
+            year: yearMatch ? parseInt(yearMatch[1]) : 0
         }));
     });
 }
 
 function loadStreams(url, callback) {
     var id = url.split("/").pop().split("-").pop();
-    var sourcesUrl = mainUrl + "/ajax/movie/episodes/" + id;
-    http_get(sourcesUrl, commonHeaders, function(status, data) {
+    var ajaxUrl = mainUrl + "/ajax/movie/episodes/" + id;
+    http_get(ajaxUrl, commonHeaders, function(status, data) {
         var streams = [];
+        var iframeUrls = [];
         try {
             var parsed = JSON.parse(data);
-            var content = parsed.html || parsed.link || data;
-            var parts = content.split(".m3u8");
-            for (var i = 0; i < parts.length - 1; i++) {
-                var chunk = parts[i];
-                var start = chunk.lastIndexOf('"');
-                if (start === -1) start = chunk.lastIndexOf("'");
-                if (start !== -1) {
-                    var streamUrl = chunk.substring(start + 1) + ".m3u8";
-                    streams.push({ name: "Auto " + (i + 1), url: streamUrl, headers: commonHeaders });
-                }
+            var html = parsed.html || parsed.content || "";
+            var serverBlocks = html.split("server-item");
+            for (var i = 1; i < serverBlocks.length; i++) {
+                var srcMatch = serverBlocks[i].match(/data-url="([^"]+)"/);
+                if (!srcMatch) srcMatch = serverBlocks[i].match(/href="([^"]+)"/);
+                if (srcMatch) iframeUrls.push(srcMatch[1]);
             }
         } catch(e) {}
-        callback(JSON.stringify(streams));
+        if (iframeUrls.length === 0) {
+            var raw = data.match(/data-url="([^"]+)"/g) || [];
+            for (var j = 0; j < raw.length; j++) {
+                var m = raw[j].match(/data-url="([^"]+)"/);
+                if (m) iframeUrls.push(m[1]);
+            }
+        }
+        if (iframeUrls.length === 0) { callback(JSON.stringify(streams)); return; }
+        var pending = iframeUrls.length;
+        iframeUrls.forEach(function(embedUrl) {
+            http_get(embedUrl, { "User-Agent": commonHeaders["User-Agent"], "Referer": mainUrl + "/" }, function(s, embedHtml) {
+                var v = embedHtml.match(/file:s*"([^"]+.m3u8[^"]*)"/);
+                if (!v) v = embedHtml.match(/"([^"]+.m3u8[^"]*)"/);
+                if (v) {
+                    streams.push({ name: "Auto", url: v[1], headers: { "User-Agent": commonHeaders["User-Agent"], "Referer": embedUrl } });
+                }
+                pending--;
+                if (pending === 0) { callback(JSON.stringify(streams)); }
+            });
+        });
     });
 }
