@@ -2,54 +2,74 @@ const mainUrl = "https://sflix.to";
 
 const commonHeaders = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Referer": mainUrl + "/"
+    "Referer": mainUrl + "/",
+    "X-Requested-With": "XMLHttpRequest"
 };
 
 function getManifest() {
     return {
         name: "StormExt All Sources",
         id: "com.rheno911.stormext",
-        version: 4,
+        version: 5,
         baseUrl: mainUrl,
         type: "Movie",
         language: "en"
     };
 }
 
-function parseItems(html) {
+function parseItemsFromHtml(html) {
     var results = [];
     var blocks = html.split("flw-item");
     for (var i = 1; i < blocks.length; i++) {
         var block = blocks[i];
-        var linkMatch = block.match(/href="([^"]+)"/);
+        var linkMatch = block.match(/href="([^"]*(?:movie|tv-show|film)[^"]*)"/);
         var imgMatch  = block.match(/data-src="([^"]+)"/);
-        if (!imgMatch) imgMatch = block.match(/src="(https:[^"]+.(?:jpg|png|webp)[^"]*)"/);
+        if (!imgMatch) imgMatch = block.match(/src="(https:[^"]+)"/);
         var nameMatch = block.match(/film-name[^>]*>[^<]*<a[^>]*>([^<]+)</);
+        if (!nameMatch) nameMatch = block.match(/<a[^>]+title="([^"]+)"/);
         if (linkMatch && nameMatch) {
             var href = linkMatch[1];
-            var fullUrl = href.indexOf("http") === 0 ? href : mainUrl + href;
             results.push({
                 title: nameMatch[1].trim(),
-                url: fullUrl,
-                posterUrl: imgMatch ? imgMatch[1] : "",
-                headers: commonHeaders
+                url: href.indexOf("http") === 0 ? href : mainUrl + href,
+                posterUrl: imgMatch ? imgMatch[1] : ""
             });
         }
     }
     return results;
 }
 
+function parseItemsFromJson(jsonStr) {
+    var results = [];
+    try {
+        var data = JSON.parse(jsonStr);
+        var list = data.data || data.movies || data.results || data;
+        if (!Array.isArray(list)) return results;
+        for (var i = 0; i < list.length; i++) {
+            var item = list[i];
+            results.push({
+                title: item.title || item.name || "",
+                url: mainUrl + (item.link || item.url || "/movie/" + item.slug + "-" + item.id),
+                posterUrl: item.poster_path ? "https://image.tmdb.org/t/p/w300" + item.poster_path : (item.poster || item.img || "")
+            });
+        }
+    } catch(e) {}
+    return results;
+}
+
 function getHome(callback) {
-    var sections = [
-        { title: "Trending",      url: mainUrl + "/home" },
-        { title: "Latest Movies", url: mainUrl + "/movie" },
-        { title: "Latest TV",     url: mainUrl + "/tv-show" }
+    var ajaxUrls = [
+        { title: "Trending",      url: mainUrl + "/ajax/movie/list/trending?type=movie&page=1" },
+        { title: "Latest Movies", url: mainUrl + "/ajax/movie/list/latest?type=movie&page=1" },
+        { title: "Latest TV",     url: mainUrl + "/ajax/movie/list/latest?type=tv&page=1" }
     ];
     var resultMap = {};
-    var pending = sections.length;
-    sections.forEach(function(section) {
-        http_get(section.url, commonHeaders, function(status, html) {
-            resultMap[section.title] = parseItems(html);
+    var pending = ajaxUrls.length;
+    ajaxUrls.forEach(function(section) {
+        http_get(section.url, commonHeaders, function(status, data) {
+            var items = parseItemsFromJson(data);
+            if (items.length === 0) items = parseItemsFromHtml(data);
+            resultMap[section.title] = items;
             pending--;
             if (pending === 0) { callback(JSON.stringify(resultMap)); }
         });
@@ -57,9 +77,16 @@ function getHome(callback) {
 }
 
 function search(query, callback) {
-    var url = mainUrl + "/search/" + encodeURIComponent(query);
-    http_get(url, commonHeaders, function(status, html) {
-        callback(JSON.stringify(parseItems(html)));
+    var url = mainUrl + "/ajax/search?keyword=" + encodeURIComponent(query);
+    http_get(url, commonHeaders, function(status, data) {
+        var items = parseItemsFromJson(data);
+        if (items.length === 0) {
+            http_get(mainUrl + "/search/" + encodeURIComponent(query), commonHeaders, function(s, html) {
+                callback(JSON.stringify(parseItemsFromHtml(html)));
+            });
+            return;
+        }
+        callback(JSON.stringify(items));
     });
 }
 
@@ -68,11 +95,12 @@ function load(url, callback) {
         var titleMatch = html.match(/heading-name[^>]*>[^<]*<a[^>]*>([^<]+)</);
         var descMatch  = html.match(/class="description"[^>]*>[^<]*<p[^>]*>([^<]+)</);
         var imgMatch   = html.match(/film-poster-img[^>]+data-src="([^"]+)"/);
-        if (!imgMatch) imgMatch = html.match(/film-poster-img[^>]+src="([^"]+)"/);
-        var yearMatch  = html.match(/class="[^"]*year[^"]*"[^>]*>([^<]+)</);
+        if (!imgMatch) imgMatch = html.match(/og:image[^>]+content="([^"]+)"/);
+        var yearMatch  = html.match(/class="[^"]*year[^"]*"[^>]*>([0-9]{4})/);
+        var idMatch    = html.match(/data-id="([0-9]+)"/);
         callback(JSON.stringify({
             url: url,
-            data: html,
+            data: idMatch ? idMatch[1] : url,
             title: titleMatch ? titleMatch[1].trim() : "",
             description: descMatch ? descMatch[1].trim() : "",
             posterUrl: imgMatch ? imgMatch[1] : "",
@@ -82,37 +110,31 @@ function load(url, callback) {
 }
 
 function loadStreams(url, callback) {
-    var id = url.split("/").pop().split("-").pop();
-    var ajaxUrl = mainUrl + "/ajax/movie/episodes/" + id;
-    http_get(ajaxUrl, commonHeaders, function(status, data) {
+    var id = url.split("-").pop().replace(/[^0-9]/g, "");
+    var serverUrl = mainUrl + "/ajax/movie/episodes/" + id;
+    http_get(serverUrl, commonHeaders, function(status, data) {
         var streams = [];
-        var iframeUrls = [];
+        var embedUrls = [];
         try {
             var parsed = JSON.parse(data);
             var html = parsed.html || parsed.content || "";
-            var serverBlocks = html.split("server-item");
-            for (var i = 1; i < serverBlocks.length; i++) {
-                var srcMatch = serverBlocks[i].match(/data-url="([^"]+)"/);
-                if (!srcMatch) srcMatch = serverBlocks[i].match(/href="([^"]+)"/);
-                if (srcMatch) iframeUrls.push(srcMatch[1]);
+            var parts = html.split("eps-item");
+            for (var i = 1; i < parts.length; i++) {
+                var linkMatch = parts[i].match(/data-id="([0-9]+)"/);
+                if (linkMatch) embedUrls.push(mainUrl + "/ajax/movie/episode/servers/" + linkMatch[1]);
             }
         } catch(e) {}
-        if (iframeUrls.length === 0) {
-            var raw = data.match(/data-url="([^"]+)"/g) || [];
-            for (var j = 0; j < raw.length; j++) {
-                var m = raw[j].match(/data-url="([^"]+)"/);
-                if (m) iframeUrls.push(m[1]);
-            }
+        if (embedUrls.length === 0) {
+            var iframeMatch = data.match(/iframe[^>]+src="([^"]+)"/);
+            if (iframeMatch) embedUrls.push(iframeMatch[1]);
         }
-        if (iframeUrls.length === 0) { callback(JSON.stringify(streams)); return; }
-        var pending = iframeUrls.length;
-        iframeUrls.forEach(function(embedUrl) {
+        if (embedUrls.length === 0) { callback(JSON.stringify(streams)); return; }
+        var pending = embedUrls.length;
+        embedUrls.forEach(function(embedUrl) {
             http_get(embedUrl, { "User-Agent": commonHeaders["User-Agent"], "Referer": mainUrl + "/" }, function(s, embedHtml) {
-                var v = embedHtml.match(/file:s*"([^"]+.m3u8[^"]*)"/);
-                if (!v) v = embedHtml.match(/"([^"]+.m3u8[^"]*)"/);
-                if (v) {
-                    streams.push({ name: "Auto", url: v[1], headers: { "User-Agent": commonHeaders["User-Agent"], "Referer": embedUrl } });
-                }
+                var m3u8 = embedHtml.match(/file:s*["']([^"']+.m3u8[^"']*)["']/);
+                if (!m3u8) m3u8 = embedHtml.match(/["']([^"']+.m3u8[^"']*)["']/);
+                if (m3u8) streams.push({ name: "Auto", url: m3u8[1], headers: { "User-Agent": commonHeaders["User-Agent"], "Referer": embedUrl } });
                 pending--;
                 if (pending === 0) { callback(JSON.stringify(streams)); }
             });
