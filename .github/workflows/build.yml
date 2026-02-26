@@ -9,12 +9,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Create plugin.sky
-        run: zip -j plugin.sky plugin.js
+
+      - name: Copy plugin.sky to plugin.js then repackage
+        run: |
+          cp plugin.sky plugin_extracted.js
+          zip -j plugin_new.sky plugin_extracted.js -x "*.sky"
+          mv plugin_new.sky plugin.sky
+
+      - name: Rename internal file to plugin.js inside zip
+        run: |
+          mkdir tmpzip
+          cp plugin.sky tmpzip/plugin.sky
+          cd tmpzip
+          unzip plugin.sky -d extracted || true
+          cp extracted/plugin_extracted.js plugin.js 2>/dev/null || cp plugin.sky plugin.js
+          zip -j ../plugin_final.sky plugin.js
+          cd ..
+          mv plugin_final.sky plugin.sky
+
       - name: Commit plugin.sky
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add plugin.sky
-          git commit -m "Auto-build plugin.sky" || echo "No changes"
+          git commit -m "Rebuild plugin.sky with plugin.js inside" || echo "No changes"
           git push
