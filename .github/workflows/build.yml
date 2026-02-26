@@ -10,39 +10,33 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Create plugin.sky (Dart-compatible ZIP)
+      - name: Create plugin.sky (base64 decode - no git corruption)
         run: |
           python3 - <<'EOF'
-          import zipfile, io, struct
+          import base64, zipfile, io, struct, zlib
 
           with open('plugin.js', 'rb') as f:
-              content = f.read()
+              js = f.read()
 
-          buf = io.BytesIO()
-          with zipfile.ZipFile(buf, 'w', zipfile.ZIP_STORED) as z:
-              info = zipfile.ZipInfo('plugin.js')
-              info.compress_type = zipfile.ZIP_STORED
-              info.create_system = 0
-              info.create_version = 20
-              info.extract_version = 20
-              info.flag_bits = 0
-              z.writestr(info, content)
-
-          data = buf.getvalue()
-          extra_len = struct.unpack('<H', data[28:30])[0]
-          print(f"ZIP size: {len(data)} bytes")
-          print(f"Extra field length: {extra_len} (must be 0)")
-          print(f"First 4 bytes: {data[:4].hex()} (must be 504b0304)")
+          crc = zlib.crc32(js) & 0xFFFFFFFF
+          fname = b'plugin.js'
+          local = struct.pack('<IHHHHHIIIHH', 0x04034b50,20,0,0,0,0,crc,len(js),len(js),len(fname),0)+fname+js
+          cd = struct.pack('<IHHHHHHIIIHHHHHII', 0x02014b50,20,20,0,0,0,0,crc,len(js),len(js),len(fname),0,0,0,0,0,0)+fname
+          eocd = struct.pack('<IHHHHIIH', 0x06054b50,0,0,1,1,len(cd),len(local),0)
+          data = local + cd + eocd
 
           with open('plugin.sky', 'wb') as f:
               f.write(data)
-          print("plugin.sky written successfully ✅")
+
+          z = zipfile.ZipFile(io.BytesIO(data))
+          print(f"Valid ZIP: {z.namelist()}")
+          print(f"Size: {len(data)} bytes")
           EOF
 
-      - name: Commit plugin.sky
+      - name: Commit
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add plugin.sky
-          git commit -m "Rebuild plugin.sky (Dart-compatible)" || echo "No changes"
+          git add -f plugin.sky
+          git commit -m "Rebuild plugin.sky v4" || echo "No changes"
           git push
