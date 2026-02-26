@@ -4,7 +4,7 @@
   "version": 1,
   "author": "rheno911",
   "description": "40+ streaming providers",
-  "plugins": [
+  "repos": [
     {
       "id": "com.rheno911.stormext",
       "name": "StormExt All Sources",
@@ -12,7 +12,8 @@
       "version": 10,
       "authors": ["rheno911"],
       "description": "40+ streaming providers",
-      "language": "en"
+      "language": "en",
+      "type": "Movie"
     }
   ]
 }
