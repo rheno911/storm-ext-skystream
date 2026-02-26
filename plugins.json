@@ -1,12 +1,13 @@
 [
   {
-    "id": "com.rheno911.stormext",
-    "name": "StormExt All Sources",
     "url": "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/main/plugin.sky",
+    "name": "StormExt All Sources",
+    "internalName": "StormExtAllSources",
     "version": 11,
     "authors": ["rheno911"],
+    "repositoryUrl": "https://github.com/rheno911/storm-ext-skystream",
     "description": "40+ streaming providers",
     "language": "en",
-    "type": "Movie"
+    "tvTypes": ["Movie", "TvSeries"]
   }
 ]
