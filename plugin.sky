@@ -1,4 +1,11 @@
-// ─── MANIFEST ────────────────────────────────────────────────────────────────
+// @name        StormExt All Sources
+// @id          com.rheno911.stormext
+// @version     1.0.0
+// @description 40+ streaming providers with IMDb, multi-audio, movies, series, anime
+// @author      rheno911
+// @language    en
+// @type        Movie
+
 function getManifest() {
     return {
         name: "StormExt All Sources",
@@ -10,19 +17,22 @@ function getManifest() {
     };
 }
 
-const commonHeaders = {
+var mainUrl = "https://sflix.to";
+
+var commonHeaders = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept-Language": "en-US,en;q=0.9"
 };
 
-// ─── HOME PAGE ────────────────────────────────────────────────────────────────
 function getHome(callback) {
     var categories = [
-        { title: "Trending Movies", url: "https://sflix.to/home" },
-        { title: "Latest Series",   url: "https://sflix.to/tv-show" },
-        { title: "Anime",           url: "https://gogoanime.sk/popular.html" },
-        { title: "Spanish Movies",  url: "https://cuevana3.me/peliculas" },
-        { title: "KDrama",          url: "https://dramasee.net/home" }
+        { title: "Trending Movies",  url: "https://sflix.to/home" },
+        { title: "Latest Series",    url: "https://sflix.to/tv-show" },
+        { title: "Anime",            url: "https://gogoanime.sk/popular.html" },
+        { title: "Spanish Movies",   url: "https://cuevana3.me/peliculas" },
+        { title: "KDrama",           url: "https://dramasee.net/home" },
+        { title: "Arabic Movies",    url: "https://akwam.to/movies" },
+        { title: "Cartoons",         url: "https://wcostream.cc/home" }
     ];
 
     var results = [];
@@ -30,27 +40,7 @@ function getHome(callback) {
 
     categories.forEach(function(cat) {
         http_get(cat.url, commonHeaders, function(status, html) {
-            var items = [];
-            // FLW-style sites (sflix, dopebox etc)
-            var flwReg = /class="flw-item"[sS]*?href="([^"]+)"[sS]*?data-src="([^"]+)"[sS]*?class="film-name[^"]*"[^>]*>([^<]+)</g;
-            var m;
-            while ((m = flwReg.exec(html)) !== null) {
-                items.push({ name: m[3].trim(), link: m[1], image: m[2], description: "" });
-            }
-            // WordPress/TPost style (cuevana, pelisplus etc)
-            if (items.length === 0) {
-                var wpReg = /class="TPost[^"]*"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="Title"[^>]*>([^<]+)</g;
-                while ((m = wpReg.exec(html)) !== null) {
-                    items.push({ name: m[3].trim(), link: m[1], image: m[2], description: "" });
-                }
-            }
-            // GogoAnime style
-            if (items.length === 0) {
-                var gogoReg = /<li>[sS]*?<a href="([^"]+)"[sS]*?<img src="([^"]+)"[sS]*?<p class="name">[sS]*?<a[^>]+>([^<]+)</g;
-                while ((m = gogoReg.exec(html)) !== null) {
-                    items.push({ name: m[3].trim(), link: m[1], image: m[2], description: "" });
-                }
-            }
+            var items = parseResults(html, "auto", cat.title);
             results.push({ title: cat.title, Data: items });
             pending--;
             if (pending === 0) {
@@ -60,24 +50,33 @@ function getHome(callback) {
     });
 }
 
-// ─── SEARCH ───────────────────────────────────────────────────────────────────
 function search(query, callback) {
     var providers = [
-        { name: "Sflix",       url: "https://sflix.to/search?keyword="          + encodeURIComponent(query), type: "flw"      },
-        { name: "Cuevana3",    url: "https://cuevana3.me/?s="                   + encodeURIComponent(query), type: "wp"       },
-        { name: "Cinecalidad", url: "https://cinecalidad.lol/?s="               + encodeURIComponent(query), type: "wp"       },
-        { name: "Pelisplus",   url: "https://pelisplus.icu/search?s="           + encodeURIComponent(query), type: "card"     },
-        { name: "GogoAnime",   url: "https://gogoanime.sk/search.html?keyword=" + encodeURIComponent(query), type: "gogo"     },
-        { name: "AnimeFlv",    url: "https://www3.animeflv.net/browse?q="       + encodeURIComponent(query), type: "animeflv" },
-        { name: "DramaSee",    url: "https://dramasee.net/?s="                  + encodeURIComponent(query), type: "flw"      },
-        { name: "Akwam",       url: "https://akwam.to/search?q="                + encodeURIComponent(query), type: "akwam"   },
-        { name: "MyCima",      url: "https://mycima.tv/?s="                     + encodeURIComponent(query), type: "mycima"  },
-        { name: "Yomovies",    url: "https://yomovies.vip/?s="                  + encodeURIComponent(query), type: "wp"       },
-        { name: "WCO",         url: "https://wcostream.cc/search-by-letter/?search=" + encodeURIComponent(query), type: "wco" },
-        { name: "PelisplusHD", url: "https://pelisplushd.net/search?s="        + encodeURIComponent(query), type: "card"     },
-        { name: "Seriesflix",  url: "https://seriesflix.video/?s="              + encodeURIComponent(query), type: "wp"       },
-        { name: "AsianLoad",   url: "https://asianembed.io/?s="                 + encodeURIComponent(query), type: "asian"    },
-        { name: "KDramaHood",  url: "https://kdramahood.com/?s="                + encodeURIComponent(query), type: "wp"       }
+        { name: "Sflix",        url: "https://sflix.to/search?keyword="           + encodeURIComponent(query), type: "flw"      },
+        { name: "Dopebox",      url: "https://dopebox.to/search?keyword="         + encodeURIComponent(query), type: "flw"      },
+        { name: "Cuevana3",     url: "https://cuevana3.me/?s="                    + encodeURIComponent(query), type: "wp"       },
+        { name: "Cinecalidad",  url: "https://cinecalidad.lol/?s="                + encodeURIComponent(query), type: "wp"       },
+        { name: "Pelisplus",    url: "https://pelisplus.icu/search?s="            + encodeURIComponent(query), type: "card"     },
+        { name: "PelisplusHD",  url: "https://pelisplushd.net/search?s="         + encodeURIComponent(query), type: "card"     },
+        { name: "Seriesflix",   url: "https://seriesflix.video/?s="               + encodeURIComponent(query), type: "wp"       },
+        { name: "PeliSmart",    url: "https://pelismart.com/?s="                  + encodeURIComponent(query), type: "wp"       },
+        { name: "GogoAnime",    url: "https://gogoanime.sk/search.html?keyword="  + encodeURIComponent(query), type: "gogo"     },
+        { name: "AnimeFlv",     url: "https://www3.animeflv.net/browse?q="        + encodeURIComponent(query), type: "animeflv" },
+        { name: "AnimeWorld",   url: "https://www.animeworld.tv/search?keyword="  + encodeURIComponent(query), type: "animeworld"},
+        { name: "DramaSee",     url: "https://dramasee.net/?s="                   + encodeURIComponent(query), type: "flw"      },
+        { name: "DoramasYT",    url: "https://doramasyt.com/?s="                  + encodeURIComponent(query), type: "wp"       },
+        { name: "KDramaHood",   url: "https://kdramahood.com/?s="                 + encodeURIComponent(query), type: "wp"       },
+        { name: "WatchAsian",   url: "https://watchasian.cx/?s="                  + encodeURIComponent(query), type: "asian"    },
+        { name: "Akwam",        url: "https://akwam.to/search?q="                 + encodeURIComponent(query), type: "akwam"   },
+        { name: "MyCima",       url: "https://mycima.tv/?s="                      + encodeURIComponent(query), type: "mycima"  },
+        { name: "Yomovies",     url: "https://yomovies.vip/?s="                   + encodeURIComponent(query), type: "wp"       },
+        { name: "WCO",          url: "https://wcostream.cc/search-by-letter/?search=" + encodeURIComponent(query), type: "wco"  },
+        { name: "AsianLoad",    url: "https://asianembed.io/?s="                  + encodeURIComponent(query), type: "asian"    },
+        { name: "PinoyHD",      url: "https://www.pinoy-hd.xyz/?s="               + encodeURIComponent(query), type: "wp"       },
+        { name: "FrenchStream", url: "https://french-stream.re/?s="               + encodeURIComponent(query), type: "french"  },
+        { name: "Filman",       url: "https://filman.cc/search?query="            + encodeURIComponent(query), type: "filman"  },
+        { name: "Monoschinos",  url: "https://monoschinos2.com/buscar?q="         + encodeURIComponent(query), type: "mono"    },
+        { name: "2Embed",       url: "https://www.2embed.to/search?keyword="      + encodeURIComponent(query), type: "flw"      }
     ];
 
     var allResults = [];
@@ -89,7 +88,7 @@ function search(query, callback) {
             items.forEach(function(i) { allResults.push(i); });
             pending--;
             if (pending === 0) {
-                callback(JSON.stringify([{ title: "Search Results", Data: allResults }]));
+                callback(JSON.stringify([{ title: "Results", Data: allResults }]));
             }
         });
     });
@@ -98,104 +97,155 @@ function search(query, callback) {
 function parseResults(html, type, sourceName) {
     var items = [];
     var m;
-    if (type === "flw") {
-        var r = /href="([^"]+)"[^>]*class="film-poster-ahref[sS]*?data-src="([^"]+)"[sS]*?class="film-name[^"]*"[^>]*>([^<]+)</g;
-        while ((m = r.exec(html)) !== null) {
-            items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
-        }
-    } else if (type === "wp") {
-        var r2 = /class="TPost[^"]*"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="Title"[^>]*>([^<]+)</g;
+
+    // FLW style (sflix, dopebox, dramasee, 2embed)
+    var r1 = /href="(https?://[^"]+)"[^>]*class="film-poster-ahref[sS]*?data-src="([^"]+)"[sS]*?class="film-name[^"]*"[^>]*>([^<]+)</g;
+    while ((m = r1.exec(html)) !== null) {
+        items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
+    }
+
+    // WordPress TPost style (cuevana, cinecalidad, seriesflix, pelismart, doramas, kdrama, pinoy, yomovies)
+    if (items.length === 0) {
+        var r2 = /class="TPost[^"]*"[sS]*?href="([^"]+)"[sS]*?(?:data-src|src)="([^"]+)"[sS]*?class="Title"[^>]*>([^<]+)</g;
         while ((m = r2.exec(html)) !== null) {
             items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
         }
-        if (items.length === 0) {
-            var r3 = /class="result-item"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="title"[^>]*><a[^>]+>([^<]+)</g;
-            while ((m = r3.exec(html)) !== null) {
-                items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
-            }
+    }
+
+    // WordPress result-item style (pelismart, entrepeli, vffr, allmovies)
+    if (items.length === 0) {
+        var r3 = /class="result-item"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="title"[^>]*>s*<a[^>]+>([^<]+)</g;
+        while ((m = r3.exec(html)) !== null) {
+            items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
         }
-    } else if (type === "card") {
+    }
+
+    // Card style (pelisplus, pelisplushd)
+    if (items.length === 0) {
         var r4 = /class="card-movie"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="card-title"[^>]*>([^<]+)</g;
         while ((m = r4.exec(html)) !== null) {
             items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
         }
-    } else if (type === "gogo") {
-        var r5 = /<li>[sS]*?<a href="([^"]+)"[sS]*?<img src="([^"]+)"[sS]*?<p class="name">[sS]*?<a[^>]+>([^<]+)</g;
+    }
+
+    // GogoAnime style
+    if (items.length === 0) {
+        var r5 = /class="items"[sS]*?href="(/[^"]+)"[sS]*?src="([^"]+)"[sS]*?class="name"[sS]*?<a[^>]+>([^<]+)</g;
         while ((m = r5.exec(html)) !== null) {
             items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: "https://gogoanime.sk" + m[1], image: m[2], description: sourceName });
         }
-    } else if (type === "animeflv") {
-        var r6 = /class="ListAnimes"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="Title"[^>]*>([^<]+)</g;
+    }
+
+    // AnimeFlv style
+    if (items.length === 0) {
+        var r6 = /href="(/anime/[^"]+)"[sS]*?src="([^"]+)"[sS]*?class="Title"[^>]*>([^<]+)</g;
         while ((m = r6.exec(html)) !== null) {
             items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: "https://www3.animeflv.net" + m[1], image: m[2], description: sourceName });
         }
-    } else if (type === "akwam") {
-        var r7 = /class="entry-box"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="entry-title"[^>]*>([^<]+)</g;
+    }
+
+    // AnimeWorld style
+    if (items.length === 0) {
+        var r7 = /class="film-list"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="name"[^>]*>([^<]+)</g;
         while ((m = r7.exec(html)) !== null) {
             items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
         }
-    } else if (type === "mycima") {
-        var r8 = /class="GridItem"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="hasyear"[^>]*>([^<]+)</g;
+    }
+
+    // Akwam style
+    if (items.length === 0) {
+        var r8 = /class="entry-box"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="entry-title"[^>]*>([^<]+)</g;
         while ((m = r8.exec(html)) !== null) {
             items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
         }
-    } else if (type === "asian") {
-        var r9 = /class="video-block"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="title"[^>]*>([^<]+)</g;
+    }
+
+    // MyCima style
+    if (items.length === 0) {
+        var r9 = /class="GridItem"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="hasyear"[^>]*>([^<]+)</g;
         while ((m = r9.exec(html)) !== null) {
             items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
         }
-    } else if (type === "wco") {
-        var r10 = /class="video-block"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="name"[^>]*>([^<]+)</g;
+    }
+
+    // Asian/WatchAsian style
+    if (items.length === 0) {
+        var r10 = /class="video-block"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="title"[^>]*>([^<]+)</g;
         while ((m = r10.exec(html)) !== null) {
             items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
         }
     }
+
+    // WCO style
+    if (items.length === 0) {
+        var r11 = /class="video-block"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="name"[^>]*>([^<]+)</g;
+        while ((m = r11.exec(html)) !== null) {
+            items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
+        }
+    }
+
+    // French stream style
+    if (items.length === 0) {
+        var r12 = /class="card[^"]*"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="card-title"[^>]*>([^<]+)</g;
+        while ((m = r12.exec(html)) !== null) {
+            items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
+        }
+    }
+
+    // Filman style
+    if (items.length === 0) {
+        var r13 = /class="poster[^"]*"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?title="([^"]+)"/g;
+        while ((m = r13.exec(html)) !== null) {
+            items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
+        }
+    }
+
+    // Monoschinos style
+    if (items.length === 0) {
+        var r14 = /class="tarjeta[^"]*"[sS]*?href="([^"]+)"[sS]*?src="([^"]+)"[sS]*?class="tit"[^>]*>([^<]+)</g;
+        while ((m = r14.exec(html)) !== null) {
+            items.push({ name: "[" + sourceName + "] " + m[3].trim(), link: m[1], image: m[2], description: sourceName });
+        }
+    }
+
     return items;
 }
 
-// ─── LOAD DETAILS + IMDb METADATA ────────────────────────────────────────────
 function load(url, callback) {
     http_get(url, commonHeaders, function(status, html) {
-        // Extract title
         var titleM = html.match(/<h1[^>]*class="[^"]*(?:Title|heading-name|film-name|entry-title)[^"]*"[^>]*>([^<]+)</) ||
-                     html.match(/<title>([^<|–-]+)/);
-        var title = titleM ? titleM[1].trim() : "Unknown Title";
+                     html.match(/<title>([^<|]+)/);
+        var title = titleM ? titleM[1].trim() : "Unknown";
 
-        // Extract description
-        var plotM = html.match(/class="[^"]*(?:description|Description|StoryLine|synopsis|wp-content)[^"]*"[^>]*>s*<p[^>]*>([^<]+)</) ||
-                    html.match(/class="[^"]*(?:description|Description)[^"]*"[^>]*>([^<]+)</);
+        var plotM = html.match(/class="[^"]*(?:description|Description|StoryLine|synopsis)[^"]*"[^>]*>s*<p[^>]*>([^<]+)</) ||
+                    html.match(/class="[^"]*description[^"]*"[^>]*>([^<]+)</);
         var plot = plotM ? plotM[1].trim() : "";
 
-        // Extract year
-        var yearM = html.match(/class="[^"]*(?:year|Date|item year)[^"]*"[^>]*>([^<]+)</) ||
-                    html.match(/(\b20[0-2][0-9]\b)/);
-        var year = yearM ? parseInt(yearM[1]) : 0;
+        var yearM = html.match(/(\b20[0-2][0-9]\b)/);
+        var year  = yearM ? parseInt(yearM[1]) : 0;
 
-        // Extract poster
         var posterM = html.match(/property="og:image"s+content="([^"]+)"/) ||
-                      html.match(/class="[^"]*(?:film-poster-img|CoverLazy)[^"]*"[^>]*src="([^"]+)"/);
+                      html.match(/class="[^"]*film-poster[^"]*"[^>]*src="([^"]+)"/);
         var poster = posterM ? posterM[1] : "";
 
-        // Extract IMDb ID and fetch metadata
         var imdbM = html.match(/imdb.com/title/(ttd+)/);
         var imdbId = imdbM ? imdbM[1] : null;
 
         if (imdbId) {
-            var omdbUrl = "https://www.omdbapi.com/?i=" + imdbId + "&apikey=5276c879";
-            http_get(omdbUrl, {}, function(s2, omdbRaw) {
+            http_get("https://www.omdbapi.com/?i=" + imdbId + "&apikey=5276c879", {}, function(s2, raw) {
                 try {
-                    var omdb = JSON.parse(omdbRaw);
+                    var d = JSON.parse(raw);
                     callback(JSON.stringify({
                         url: url,
                         data: html,
-                        title: omdb.Title || title,
-                        description: omdb.Plot || plot,
-                        year: parseInt(omdb.Year) || year,
-                        subtitle: "⭐ " + (omdb.imdbRating || "N/A") + " | " + (omdb.Genre || "") + " | " + (omdb.Runtime || ""),
-                        image: omdb.Poster !== "N/A" ? omdb.Poster : poster
+                        title: d.Title || title,
+                        description: d.Plot || plot,
+                        year: parseInt(d.Year) || year,
+                        subtitle: "IMDb: " + (d.imdbRating || "N/A") + " | " + (d.Genre || "") + " | " + (d.Runtime || ""),
+                        image: (d.Poster && d.Poster !== "N/A") ? d.Poster : poster
                     }));
                 } catch(e) {
-                    callback(JSON.stringify({ url: url, data: html, title: title, description: plot, year: year }));
+                    callback(JSON.stringify({ url: url, data: html, title: title, description: plot, year: year, image: poster }));
                 }
             });
         } else {
@@ -204,136 +254,109 @@ function load(url, callback) {
     });
 }
 
-// ─── LOAD STREAMS + MULTI-AUDIO ──────────────────────────────────────────────
 function loadStreams(url, callback) {
     http_get(url, commonHeaders, function(status, html) {
         var streams = [];
 
-        // 1. Direct M3U8 in page scripts
-        var m3u8Matches = html.match(/https?://[^s"'\\]+.m3u8[^s"'\\]*/g);
-        if (m3u8Matches) {
-            m3u8Matches.forEach(function(m3u8Url, i) {
-                streams.push({
-                    name: "HLS Stream " + (i + 1),
-                    url: m3u8Url,
-                    headers: commonHeaders,
-                    subtitles: []
-                });
+        // Direct M3U8
+        var m3u8s = html.match(/https?://[^s"'\\]+.m3u8[^s"'\\]*/g);
+        if (m3u8s) {
+            m3u8s.forEach(function(u, i) {
+                streams.push({ name: "HLS " + (i+1), url: u, headers: commonHeaders, subtitles: [] });
             });
         }
 
-        // 2. Direct MP4 links
-        var mp4Matches = html.match(/https?://[^s"'\\]+.mp4[^s"'\\]*/g);
-        if (mp4Matches) {
-            mp4Matches.forEach(function(mp4Url, i) {
-                streams.push({
-                    name: "MP4 Stream " + (i + 1),
-                    url: mp4Url,
-                    headers: commonHeaders,
-                    subtitles: []
-                });
+        // Direct MP4
+        var mp4s = html.match(/https?://[^s"'\\]+.mp4[^s"'\\]*/g);
+        if (mp4s) {
+            mp4s.forEach(function(u, i) {
+                streams.push({ name: "MP4 " + (i+1), url: u, headers: commonHeaders, subtitles: [] });
             });
         }
 
-        // 3. FLW Ajax server extraction (sflix, dopebox, dramasee etc.)
-        var serverIds = [];
-        var serverReg = /data-id="(d+)"[^>]*class="[^"]*nav-item/g;
+        // FLW Ajax servers (sflix, dopebox, dramasee etc)
+        var sids = [];
+        var sr = /data-id="(d+)"[^>]*>/g;
         var sm;
-        while ((sm = serverReg.exec(html)) !== null) {
-            serverIds.push(sm[1]);
-        }
+        while ((sm = sr.exec(html)) !== null) { sids.push(sm[1]); }
 
-        if (serverIds.length > 0) {
-            var pending = serverIds.length;
-            serverIds.forEach(function(sid) {
-                var ajaxUrl = url.split("/").slice(0, 3).join("/") + "/ajax/sources/" + sid;
-                http_get(ajaxUrl, {
+        if (sids.length > 0 && streams.length === 0) {
+            var base = url.split("/").slice(0, 3).join("/");
+            var pending = sids.length;
+            sids.forEach(function(sid) {
+                http_get(base + "/ajax/sources/" + sid, {
                     "X-Requested-With": "XMLHttpRequest",
                     "Referer": url,
                     "User-Agent": commonHeaders["User-Agent"]
-                }, function(s2, ajaxRaw) {
+                }, function(s2, raw) {
                     try {
-                        var ajaxData = JSON.parse(ajaxRaw);
-                        var embedUrl = ajaxData.link || ajaxData.url || null;
-                        if (embedUrl) {
-                            http_get(embedUrl, { "Referer": url, "User-Agent": commonHeaders["User-Agent"] }, function(s3, embedHtml) {
-                                var em3u8 = embedHtml.match(/https?://[^s"'\\]+.m3u8[^s"'\\]*/);
-                                if (em3u8) {
+                        var aj = JSON.parse(raw);
+                        var eUrl = aj.link || aj.url || null;
+                        if (eUrl) {
+                            http_get(eUrl, { "Referer": url, "User-Agent": commonHeaders["User-Agent"] }, function(s3, eHtml) {
+                                var em = eHtml.match(/https?://[^s"'\\]+.m3u8[^s"'\\]*/);
+                                if (em) {
                                     streams.push({
                                         name: "Server " + sid,
-                                        url: em3u8[0],
-                                        headers: { "Referer": embedUrl, "User-Agent": commonHeaders["User-Agent"] },
-                                        subtitles: extractSubtitles(embedHtml)
+                                        url: em[0],
+                                        headers: { "Referer": eUrl, "User-Agent": commonHeaders["User-Agent"] },
+                                        subtitles: extractSubtitles(eHtml)
                                     });
                                 }
                                 pending--;
                                 if (pending === 0) callback(JSON.stringify(streams));
                             });
-                        } else {
-                            pending--;
-                            if (pending === 0) callback(JSON.stringify(streams));
-                        }
-                    } catch(e) {
-                        pending--;
-                        if (pending === 0) callback(JSON.stringify(streams));
-                    }
+                        } else { pending--; if (pending === 0) callback(JSON.stringify(streams)); }
+                    } catch(e) { pending--; if (pending === 0) callback(JSON.stringify(streams)); }
                 });
             });
-        } else {
-            // 4. WordPress dooplay player (cuevana, pelismart, seriesflix etc.)
-            var dooReg = /class="dooplay_player_option"[^>]*data-post="(d+)"[^>]*data-type="([^"]+)"/g;
-            var dooIds = [];
-            var dm;
-            while ((dm = dooReg.exec(html)) !== null) {
-                dooIds.push({ post: dm[1], type: dm[2] });
-            }
-
-            if (dooIds.length > 0) {
-                var base = url.split("/").slice(0, 3).join("/");
-                var p2 = dooIds.length;
-                dooIds.forEach(function(d) {
-                    http_get(base + "/wp-admin/admin-ajax.php", {
-                        "Content-Type": "application/x-www-form-urlencoded",
-                        "X-Requested-With": "XMLHttpRequest",
-                        "Referer": url,
-                        "User-Agent": commonHeaders["User-Agent"]
-                    }, function(s2, dooRaw) {
-                        try {
-                            var dooData = JSON.parse(dooRaw);
-                            var embedUrl = dooData.embed_url || dooData.url || null;
-                            if (embedUrl) {
-                                var m3u8 = embedUrl.match(/https?://[^s"'\\]+.m3u8[^s"'\\]*/);
-                                if (m3u8) {
-                                    streams.push({
-                                        name: "WP Server " + d.post,
-                                        url: m3u8[0],
-                                        headers: { "Referer": base, "User-Agent": commonHeaders["User-Agent"] },
-                                        subtitles: []
-                                    });
-                                }
-                            }
-                        } catch(e) {}
-                        p2--;
-                        if (p2 === 0) callback(JSON.stringify(streams));
-                    });
-                });
-            } else {
-                // If no streams found, return empty
-                if (streams.length === 0) {
-                    streams.push({ name: "No streams found", url: "", headers: {}, subtitles: [] });
-                }
-                callback(JSON.stringify(streams));
-            }
+            return;
         }
+
+        // WordPress dooplay (cuevana, pelismart, seriesflix etc)
+        var dooIds = [];
+        var dr = /data-post="(d+)"[^>]*data-type="([^"]+)"/g;
+        var dm;
+        while ((dm = dr.exec(html)) !== null) { dooIds.push({ post: dm[1], type: dm[2] }); }
+
+        if (dooIds.length > 0 && streams.length === 0) {
+            var base2 = url.split("/").slice(0, 3).join("/");
+            var p2 = dooIds.length;
+            dooIds.forEach(function(d) {
+                http_get(base2 + "/wp-admin/admin-ajax.php", {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Referer": url,
+                    "User-Agent": commonHeaders["User-Agent"]
+                }, function(s2, raw) {
+                    try {
+                        var dj = JSON.parse(raw);
+                        var eUrl = dj.embed_url || dj.url || null;
+                        if (eUrl) {
+                            var em2 = eUrl.match(/https?://[^s"'\\]+.m3u8[^s"'\\]*/);
+                            if (em2) {
+                                streams.push({ name: "WP " + d.post, url: em2[0], headers: { "Referer": base2, "User-Agent": commonHeaders["User-Agent"] }, subtitles: [] });
+                            }
+                        }
+                    } catch(e) {}
+                    p2--;
+                    if (p2 === 0) callback(JSON.stringify(streams));
+                });
+            });
+            return;
+        }
+
+        if (streams.length === 0) {
+            streams.push({ name: "No stream found", url: "", headers: {}, subtitles: [] });
+        }
+        callback(JSON.stringify(streams));
     });
 }
 
-// ─── SUBTITLE HELPER ─────────────────────────────────────────────────────────
 function extractSubtitles(html) {
     var subs = [];
-    var subReg = /kind="(?:subtitles|captions)"[^>]*srclang="([^"]+)"[^>]*label="([^"]+)"[^>]*src="([^"]+)"/g;
+    var r = /kind="(?:subtitles|captions)"[^>]*srclang="([^"]+)"[^>]*label="([^"]+)"[^>]*src="([^"]+)"/g;
     var m;
-    while ((m = subReg.exec(html)) !== null) {
+    while ((m = r.exec(html)) !== null) {
         subs.push({ label: m[2], url: m[3] });
     }
     return subs;
