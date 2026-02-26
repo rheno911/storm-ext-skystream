@@ -4,7 +4,7 @@
     "internalName": "Net22Sources",
     "url": "https://raw.githubusercontent.com/rheno911/storm-ext-skystream/main/plugin.js",
     "icon": "",
-    "version": 3,
+    "version": 4,
     "description": "Net22.cc streaming provider",
     "authors": ["rheno911"],
     "language": "en",
