@@ -10,17 +10,16 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Build plugin.sky using Linux zip
+      - name: Build plugin.sky
         run: |
           zip -j plugin.sky plugin.js
-          echo "ZIP created:"
-          ls -la plugin.sky
+          echo "Built:"
           unzip -v plugin.sky
 
-      - name: Commit plugin.sky
+      - name: Commit
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add -f plugin.sky
-          git commit -m "Rebuild plugin.sky v8" || echo "No changes"
+          git commit -m "Rebuild plugin.sky" || echo "No changes"
           git push
