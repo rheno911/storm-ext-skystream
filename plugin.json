@@ -2,8 +2,9 @@
   "id": "storm_ext_all",
   "name": "StormExt All Sources",
   "version": "1.0.0",
-  "description": "All storm-ext providers: IMDb, multi-audio, 40+ sites",
+  "description": "40+ streaming providers with IMDb, multi-audio support",
   "author": "rheno911",
-  "internalName": "StormExtAll",
-  "language": "en"
+  "main": "plugin.js",
+  "language": "en",
+  "categories": ["movies", "series", "anime", "kdrama"]
 }
